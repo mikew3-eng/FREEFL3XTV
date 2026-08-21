@@ -201,6 +201,7 @@ object Routes {
     const val ABOUT = "about"
     const val SERIES_DETAIL = "series/{seriesId}"
     const val MOVIE_DETAIL = "movie/{movieId}"
+    const val EDIT_SOURCE = "edit-source/{sourceId}"
 
     // A person's name goes in a query arg, URL-encoded, so spaces and punctuation survive the round
     // trip — the same inline-encode/decode approach as the VOD player below.
@@ -213,6 +214,7 @@ object Routes {
     fun player(channelId: Long) = "player/$channelId"
     fun seriesDetail(seriesId: Long) = "series/$seriesId"
     fun movieDetail(movieId: Long) = "movie/$movieId"
+    fun editSource(sourceId: Long) = "edit-source/$sourceId"
     fun person(name: String) = "person?name=${java.net.URLEncoder.encode(name, "UTF-8")}"
     fun vodPlayer(key: String, url: String, title: String, ua: String): String {
         fun e(v: String) = java.net.URLEncoder.encode(v, "UTF-8")
@@ -308,6 +310,15 @@ private fun OpenTvApp(isTelevision: Boolean) {
                             popUpTo(Routes.ADD_SOURCE) { inclusive = true }
                         }
                     },
+                )
+            }
+
+            composable(Routes.EDIT_SOURCE) { entry ->
+                val sourceId = entry.arguments?.getString("sourceId")?.toLongOrNull() ?: return@composable
+                AddSourceScreen(
+                    viewModel = sourcesViewModel,
+                    editingSourceId = sourceId,
+                    onFinished = { navController.popBackStack() },
                 )
             }
 
@@ -432,6 +443,7 @@ private fun OpenTvApp(isTelevision: Boolean) {
                 ProvidersScreen(
                     viewModel = sourcesViewModel,
                     onAddSource = { navController.navigate(Routes.ADD_SOURCE) },
+                    onEditSource = { src -> navController.navigate(Routes.editSource(src.id)) },
                     onBack = { navController.popBackStack() },
                 )
             }

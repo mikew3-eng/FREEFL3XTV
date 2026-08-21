@@ -8,6 +8,7 @@
     <string name="common_back">Back</string>
     <string name="common_save">Save</string>
     <string name="common_remove">Remove</string>
+    <string name="common_edit">Edit</string>
     <string name="common_play">Play</string>
     <string name="common_stop">Stop</string>
     <string name="common_delete">Delete</string>
@@ -134,6 +135,7 @@
 
     <!-- ============================ Settings hub ============================ -->
     <string name="settings_providers_title">Providers</string>
+    <string name="settings_edit_provider_title">Edit provider</string>
     <string name="settings_providers_subtitle">Add, remove and re-test your IPTV sources</string>
     <string name="settings_addons_title">Add-ons (Stremio)</string>
     <string name="settings_addons_subtitle">Play from Stremio add-ons you set up yourself</string>

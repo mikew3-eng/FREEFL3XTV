@@ -31,6 +31,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -480,6 +485,12 @@ fun PlayerScreen(
                 Modifier
                     .fillMaxWidth()
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))))
+                    // Keep the controls clear of the phone/tablet system nav bar (and the side nav
+                    // bar / display cutout in landscape). Zero on a TV, so the 10-foot layout is
+                    // unchanged; the gradient above stays full-bleed to the screen edge.
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                    )
                     .padding(horizontal = 28.dp, vertical = 20.dp),
             ) {
                 // The open picker sits above the transport row.

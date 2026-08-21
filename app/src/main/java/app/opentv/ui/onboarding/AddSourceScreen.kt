@@ -65,6 +65,7 @@ import app.opentv.ui.channels.readClipboardText
 fun AddSourceScreen(
     viewModel: SourcesViewModel,
     onFinished: () -> Unit,
+    editingSourceId: Long? = null,
 ) {
     val context = LocalContext.current
     // The QR "set it up from your phone" flow only makes sense on a TV — it serves a setup page
@@ -73,7 +74,9 @@ fun AddSourceScreen(
     // straight to the direct entry form. On a TV the QR is still offered first, because typing a
     // server address and password with a d-pad is the worst moment in every app of this kind.
     val isTelevision = remember(context) { isRunningOnTelevision(context) }
-    var usePhone by remember { mutableStateOf(isTelevision) }
+    // Editing an existing provider always uses the direct form (the fields are pre-filled, and there
+    // is nothing to pair); only a fresh add on a TV offers the phone-pairing QR first.
+    var usePhone by remember { mutableStateOf(isTelevision && editingSourceId == null) }
 
     if (usePhone) {
         PhonePairingScreen(
@@ -88,17 +91,25 @@ fun AddSourceScreen(
 
     val ui by viewModel.ui.collectAsState()
 
-    var kind by remember { mutableStateOf(SourceKind.XTREAM) }
-    var name by remember { mutableStateOf("") }
-    var url by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var mac by remember { mutableStateOf("") }
-    var epgUrl by remember { mutableStateOf("") }
-    var showAdvanced by remember { mutableStateOf(false) }
-    var userAgent by remember { mutableStateOf(Source.DEFAULT_USER_AGENT) }
+    // When editing, find the source being edited and pre-fill every field from it. Keyed on its id
+    // so the fields seed once the list has loaded; a fresh add leaves everything blank.
+    val existing = remember(editingSourceId, ui.sources) {
+        editingSourceId?.let { id -> ui.sources.firstOrNull { it.id == id } }
+    }
 
-    fun draft() = Source(
+    var kind by remember(existing?.id) { mutableStateOf(existing?.kind ?: SourceKind.XTREAM) }
+    var name by remember(existing?.id) { mutableStateOf(existing?.name ?: "") }
+    var url by remember(existing?.id) { mutableStateOf(existing?.url ?: "") }
+    var username by remember(existing?.id) { mutableStateOf(existing?.username ?: "") }
+    var password by remember(existing?.id) { mutableStateOf(existing?.password ?: "") }
+    var mac by remember(existing?.id) { mutableStateOf(existing?.macAddress ?: "") }
+    var epgUrl by remember(existing?.id) { mutableStateOf(existing?.epgUrl ?: "") }
+    var showAdvanced by remember { mutableStateOf(false) }
+    var userAgent by remember(existing?.id) { mutableStateOf(existing?.userAgent ?: Source.DEFAULT_USER_AGENT) }
+
+    // Editing copies onto the existing row, so id, enabled state, live format and last-sync stamp
+    // are preserved; a fresh add starts from a blank Source (id 0, so save() inserts).
+    fun draft(): Source = (existing ?: Source(name = "", kind = kind, url = "")).copy(
         name = name.ifBlank {
             if (kind == SourceKind.M3U) context.getString(R.string.onboarding_default_playlist_name)
             else context.getString(R.string.onboarding_default_provider_name)
@@ -126,7 +137,13 @@ fun AddSourceScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Column(Modifier.widthIn(max = 640.dp)) {
-            Text(stringResource(R.string.onboarding_add_provider_title), style = MaterialTheme.typography.displaySmall)
+            Text(
+                stringResource(
+                    if (existing != null) R.string.settings_edit_provider_title
+                    else R.string.onboarding_add_provider_title,
+                ),
+                style = MaterialTheme.typography.displaySmall,
+            )
             Spacer(Modifier.height(8.dp))
             Text(
                 stringResource(R.string.onboarding_add_provider_desc),

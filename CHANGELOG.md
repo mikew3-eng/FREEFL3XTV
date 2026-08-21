@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.11.8
+
+- **Edit a saved provider.** Settings → Providers now has an **Edit** button on each provider, so you
+  can fix a server address, password, MAC or name in place instead of removing and re-adding it —
+  your favourites, hidden channels and per-provider settings are kept.
+- **Stalker portals: fewer dropped sessions.** A portal that occasionally rejected a call
+  mid-session (channels loading only "sometimes") now gets one automatic re-handshake and retry, so
+  an intermittent refusal becomes a silent re-auth rather than an empty channel list or a channel
+  that won't tune.
+- **Player controls stay clear of the system bar off-TV.** On phones and tablets the bottom control
+  bar (subtitles, audio, quality, aspect ratio) could be drawn under the navigation bar and cut off;
+  it's now inset above it. No change on Android TV.
+
 ## 0.11.7
 
 - **Stalker portals: closer to a real box.** Building on v0.11.6, OpenTV now sends the rest of the

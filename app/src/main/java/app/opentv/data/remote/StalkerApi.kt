@@ -62,8 +62,7 @@ class StalkerApi(
 
     /** Live categories ("genres") for the guide's rail. */
     suspend fun liveCategories(source: Source): List<Category> = withContext(Dispatchers.IO) {
-        val s = session(source)
-        val arr = call(s, source, type = "itv", action = "get_genres") as? JsonArray ?: return@withContext emptyList()
+        val arr = callRetrying(source, type = "itv", action = "get_genres") as? JsonArray ?: return@withContext emptyList()
         arr.mapIndexedNotNull { index, element ->
             val o = element as? JsonObject ?: return@mapIndexedNotNull null
             val id = o.str("id") ?: return@mapIndexedNotNull null
@@ -80,7 +79,7 @@ class StalkerApi(
     /** Every live channel. Each carries its `cmd`; the real URL is minted by [createLink] at play time. */
     suspend fun liveChannels(source: Source): List<Channel> = withContext(Dispatchers.IO) {
         val s = session(source)
-        val js = call(s, source, type = "itv", action = "get_all_channels")
+        val js = callRetrying(source, type = "itv", action = "get_all_channels")
         // get_all_channels returns { js: { data: [ ... ] } }; some portals return the array directly.
         val data = when (js) {
             is JsonArray -> js
@@ -111,8 +110,7 @@ class StalkerApi(
 
     /** Mint the real, short-lived stream URL for a channel's [cmd]. Null if the portal declines. */
     suspend fun createLink(source: Source, cmd: String): String? = withContext(Dispatchers.IO) {
-        val s = session(source)
-        val js = call(s, source, type = "itv", action = "create_link") { b ->
+        val js = callRetrying(source, type = "itv", action = "create_link") { b ->
             b.addQueryParameter("cmd", cmd)
             b.addQueryParameter("forced_storage", "0")
             b.addQueryParameter("disable_ad", "0")
@@ -234,6 +232,23 @@ class StalkerApi(
         extra(builder)
         val body = execute(source, builder.build(), session.token) ?: return null
         return (body as? JsonObject)?.get("js")
+    }
+
+    /**
+     * An itv call that survives a dropped session. Real portals hand out short-lived tokens and now
+     * and then refuse a call mid-session (server load, a token invalidated early); the first attempt
+     * then comes back null. Re-handshake once for a fresh token and try again, so an intermittent
+     * "sometimes just rejected" becomes a silent retry instead of an empty channel list or a channel
+     * that won't tune.
+     */
+    private fun callRetrying(
+        source: Source,
+        type: String,
+        action: String,
+        extra: (HttpUrl.Builder) -> Unit = {},
+    ): JsonElement? {
+        call(session(source), source, type, action, extra)?.let { return it }
+        return call(session(source, force = true), source, type, action, extra)
     }
 
     private fun execute(source: Source, url: HttpUrl, token: String?): JsonElement? {

@@ -49,6 +49,7 @@ import app.opentv.ui.SourcesViewModel
 @Composable
 fun ProvidersScreen(
     onAddSource: () -> Unit,
+    onEditSource: (Source) -> Unit,
     onBack: () -> Unit,
     viewModel: SourcesViewModel = viewModel(),
 ) {
@@ -87,6 +88,7 @@ fun ProvidersScreen(
                 ProviderRow(
                     source = source,
                     confirming = pendingRemove?.id == source.id,
+                    onEdit = { onEditSource(source) },
                     onAskRemove = { pendingRemove = source },
                     onCancelRemove = { pendingRemove = null },
                     onConfirmRemove = {
@@ -104,6 +106,7 @@ fun ProvidersScreen(
 private fun ProviderRow(
     source: Source,
     confirming: Boolean,
+    onEdit: () -> Unit,
     onAskRemove: () -> Unit,
     onCancelRemove: () -> Unit,
     onConfirmRemove: () -> Unit,
@@ -135,6 +138,7 @@ private fun ProviderRow(
                     TextButton(onClick = onConfirmRemove) { Text(stringResource(R.string.providers_yes_remove)) }
                     TextButton(onClick = onCancelRemove) { Text(stringResource(R.string.common_cancel)) }
                 } else {
+                    TextButton(onClick = onEdit) { Text(stringResource(R.string.common_edit)) }
                     TextButton(onClick = onAskRemove) { Text(stringResource(R.string.common_remove)) }
                 }
             }
