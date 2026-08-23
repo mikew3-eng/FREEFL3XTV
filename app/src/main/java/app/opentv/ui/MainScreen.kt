@@ -289,7 +289,7 @@ private fun NavRail(
         ) {
             Image(
                 painter = painterResource(R.drawable.ic_opentv_logo),
-                contentDescription = "OpenTV",
+                contentDescription = "FREEFL3X TV",
                 modifier = Modifier.size(34.dp),
             )
             if (expanded) {
