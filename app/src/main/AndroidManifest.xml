@@ -59,7 +59,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.OpenTV"
+        android:theme="@style/Theme.FREEFL3XTV"
         android:usesCleartextTraffic="true"
         tools:targetApi="34">
 
@@ -77,7 +77,7 @@
             android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
             android:screenOrientation="fullUser"
-            android:theme="@style/Theme.OpenTV">
+            android:theme="@style/Theme.FREEFL3XTV">
 
             <!-- Phones and tablets -->
             <intent-filter>
