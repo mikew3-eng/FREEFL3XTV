@@ -1,6 +1,6 @@
 /*
- * This file is part of OpenTV.
- * Copyright (C) 2026 The OpenTV Contributors
+ * This file is part of FREEFL3X TV.
+ * Copyright (C) 2026 The FREEFL3X TV Contributors
  * Licensed under the GNU General Public License v3.0 or later.
  */
 package app.opentv
