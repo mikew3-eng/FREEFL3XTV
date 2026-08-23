@@ -281,7 +281,7 @@ private fun NavRail(
             .padding(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        // Brand: the logo mark alone when collapsed, the mark + "OpenTV" wordmark when open. The
+        // Brand: the logo mark alone when collapsed, the mark + "FREEFL3X TV" wordmark when open. The
         // name stays on purpose — it's what people search for.
         Row(
             Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
