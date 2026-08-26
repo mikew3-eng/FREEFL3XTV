@@ -565,7 +565,7 @@ private fun FreeflexHomeScreen(
         )
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.width(280.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
 
