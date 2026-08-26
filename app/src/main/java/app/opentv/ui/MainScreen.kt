@@ -1201,7 +1201,9 @@ private fun FreeflexSideBarItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 3.dp)
+            .padding(
+    vertical = 14.dp
+)
             .clip(RoundedCornerShape(12.dp))
             .background(background)
             .onFocusChanged {
