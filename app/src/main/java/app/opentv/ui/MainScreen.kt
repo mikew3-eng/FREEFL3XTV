@@ -1073,11 +1073,11 @@ private fun FreeflexSideBar(
         /* LOGO */
 
         Text(
-            text = "FX",
-            color = FreeflexAccent,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.ExtraBold
-        )
+    text = "FREEFL3X",
+    style = MaterialTheme.typography.headlineSmall,
+    fontWeight = FontWeight.ExtraBold,
+    color = MaterialTheme.colorScheme.primary
+)
 
         Spacer(
             modifier = Modifier.height(26.dp)
