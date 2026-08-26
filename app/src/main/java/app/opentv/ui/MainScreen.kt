@@ -11,6 +11,8 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -1126,7 +1128,7 @@ private fun FreeflexSideBar(
 
             FreeflexSideBarItem(
                 icon = Icons.Default.Tv,
-                label = "Series",
+                label = "Shows",
                 selected = currentTab == FreeflexTab.SHOWS,
                 onClick = onShows
             )
@@ -1237,7 +1239,7 @@ private fun FreeflexSideBarItem(
         Text(
             text = label,
             color = contentColor,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
