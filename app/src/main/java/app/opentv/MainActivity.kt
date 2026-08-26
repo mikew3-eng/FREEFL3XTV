@@ -1,617 +1,897 @@
 /*
- * This file is part of OpenTV.
- * Copyright (C) 2026 The OpenTV Contributors
- * Licensed under the GNU General Public License v3.0 or later.
+ * FREEFL3X TV
+ * Home screen redesign based on OpenTV.
  */
-package app.opentv
+package app.opentv.ui
 
-import android.app.PictureInPictureParams
-import android.app.UiModeManager
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.content.res.Configuration
-import android.os.Build
-import android.os.Bundle
-import android.util.Rational
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FiberManualRecord
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import app.opentv.core.AppSettings
-import app.opentv.core.ServiceLocator
-import app.opentv.data.parser.displayTitle
-import app.opentv.ui.MainScreen
-import app.opentv.ui.ProfilesViewModel
-import app.opentv.ui.SourcesViewModel
-import app.opentv.ui.channels.ChannelManagerScreen
-import app.opentv.ui.channels.SearchScreen
-import app.opentv.ui.VodViewModel
-import app.opentv.ui.onboarding.AddSourceScreen
-import app.opentv.ui.player.PlayerScreen
-import app.opentv.ui.settings.AboutScreen
-import app.opentv.ui.settings.AppSettingsScreen
-import app.opentv.ui.settings.EpgSettingsScreen
-import app.opentv.ui.settings.ParentalControlsScreen
-import app.opentv.ui.settings.ProfilesScreen
-import app.opentv.ui.settings.ProvidersScreen
-import app.opentv.ui.settings.StremioAddonsScreen
-import app.opentv.ui.settings.RecordingSettingsScreen
-import app.opentv.ui.settings.SyncScreen
-import app.opentv.ui.settings.SettingsHubScreen
-import app.opentv.ui.settings.WebManagerScreen
-import app.opentv.ui.theme.OpenTvTheme
-import app.opentv.ui.vod.MovieDetailScreen
-import app.opentv.ui.vod.PersonScreen
-import app.opentv.ui.vod.SeriesDetailScreen
-import app.opentv.ui.vod.VodPlayerScreen
-import app.opentv.update.UpdateGate
+import app.opentv.core.findActivity
+import app.opentv.data.model.Channel
+import app.opentv.data.model.Movie
+import app.opentv.data.model.Recording
+import app.opentv.data.model.Series
+import app.opentv.ui.channels.HomeScreen
+import app.opentv.ui.recordings.RecordingsScreen
+import app.opentv.ui.vod.MoviesScreen
+import app.opentv.ui.vod.SeriesScreen
 
-class MainActivity : ComponentActivity() {
+private enum class FreeflexTab {
+    HOME,
+    LIVE,
+    MOVIES,
+    SHOWS,
+    RECORDINGS
+}
 
-    // Apply the chosen UI language before any view or resource is resolved. A language change in
-    // settings calls recreate(), which re-runs this with the new tag.
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(app.opentv.core.LocaleUtils.wrap(newBase))
+@Composable
+fun MainScreen(
+    isTelevision: Boolean,
+    hasSources: Boolean,
+    isSyncing: Boolean,
+    onPlayChannel: (Channel) -> Unit,
+    onOpenMovie: (Movie) -> Unit,
+    onOpenSeries: (Series) -> Unit,
+    onResume: (mediaKey: String, url: String, title: String) -> Unit,
+    onAddSource: () -> Unit,
+    onRefresh: () -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenProfiles: () -> Unit,
+    onOpenProviders: () -> Unit,
+    onPlayRecording: (Recording) -> Unit,
+    onPlayCatchup: (mediaKey: String, url: String, title: String, ua: String) -> Unit,
+    activeProfileName: String,
+) {
+    val context = LocalContext.current
+
+    val settings = remember {
+        AppSettings.get(context)
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        handlePlayIntent(intent)
-        val isTelevision = isRunningOnTelevision(this)
+    val liveEnabled by settings.liveEnabled.collectAsState()
+    val moviesEnabled by settings.moviesEnabled.collectAsState()
+    val seriesEnabled by settings.seriesEnabled.collectAsState()
 
-        setContent {
-            val settings = remember { ServiceLocator.get(this).settings }
-            val themeMode by settings.themeMode.collectAsState()
-            val darkTheme = when (themeMode) {
-                AppSettings.ThemeMode.DARK -> true
-                AppSettings.ThemeMode.LIGHT -> false
-                // A living-room screen defaults to dark; a phone/tablet follows the system.
-                AppSettings.ThemeMode.SYSTEM -> isTelevision || isSystemInDarkTheme()
-            }
-            OpenTvTheme(darkTheme = darkTheme) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background,
+    var currentTab by remember {
+        mutableStateOf(FreeflexTab.HOME)
+    }
+
+    var showExit by remember {
+        mutableStateOf(false)
+    }
+
+    BackHandler {
+        if (currentTab != FreeflexTab.HOME) {
+            currentTab = FreeflexTab.HOME
+        } else {
+            showExit = true
+        }
+    }
+
+    if (showExit) {
+        AlertDialog(
+            onDismissRequest = {
+                showExit = false
+            },
+            title = {
+                Text("Exit FREEFL3X TV?")
+            },
+            text = {
+                Text("Are you sure you want to close FREEFL3X TV?")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showExit = false
+                        context.findActivity()?.finish()
+                    }
                 ) {
-                    OpenTvApp(isTelevision = isTelevision)
+                    Text("Exit")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showExit = false
+                    }
+                ) {
+                    Text("Cancel")
                 }
             }
-        }
+        )
     }
 
-    // singleTask: a reminder tapped while the app is already running arrives here, not a fresh
-    // onCreate. Either way the requested channel is handed to the nav graph via [PlayRequests].
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        handlePlayIntent(intent)
-    }
-
-    private fun handlePlayIntent(intent: Intent?) {
-        val id = intent?.getLongExtra(EXTRA_PLAY_CHANNEL, 0L) ?: 0L
-        if (id != 0L) app.opentv.core.PlayRequests.request(id)
-        val recId = intent?.getLongExtra(EXTRA_WATCH_RECORDING, 0L) ?: 0L
-        if (recId != 0L) {
-            app.opentv.core.RecordingSignals.requestWatch(recId, System.currentTimeMillis())
-        }
-    }
-
-    // ---- Picture-in-picture ------------------------------------------------------------------
-
-    /** Home pressed while a programme is playing → shrink to a floating window instead of stopping. */
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        maybeEnterPip()
-    }
-
-    private fun supportsPip(): Boolean =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-            packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
-
-    fun maybeEnterPip() {
-        if (!app.opentv.core.PipState.eligible || !app.opentv.core.PipState.isPlaying) return
-        enterPipNow()
-    }
-
-    /** Explicit request from the player's PiP button — no eligibility guard, the user asked. */
-    fun enterPipNow() {
-        if (!supportsPip()) return
-        runCatching {
-            enterPictureInPictureMode(
-                PictureInPictureParams.Builder()
-                    .setAspectRatio(Rational(16, 9))
-                    .build(),
-            )
-        }
-    }
-
-    fun pipSupported(): Boolean = supportsPip()
-
-    override fun onPictureInPictureModeChanged(
-        isInPictureInPictureMode: Boolean,
-        newConfig: Configuration,
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-        app.opentv.core.PipState.setInPip(isInPictureInPictureMode)
-    }
 
-    companion object {
-        /** A reminder notification carries the channel to tune to in this extra. */
-        const val EXTRA_PLAY_CHANNEL = "opentv.play_channel"
+        FreeflexSideBar(
+            currentTab = currentTab,
+            onHome = {
+                currentTab = FreeflexTab.HOME
+            },
+            onLive = {
+                currentTab = FreeflexTab.LIVE
+            },
+            onMovies = {
+                currentTab = FreeflexTab.MOVIES
+            },
+            onShows = {
+                currentTab = FreeflexTab.SHOWS
+            },
+            onRecordings = {
+                currentTab = FreeflexTab.RECORDINGS
+            },
+            onSearch = onOpenSearch,
+            onSettings = onOpenSettings,
+            onProfiles = onOpenProfiles,
+            activeProfileName = activeProfileName,
+            liveEnabled = liveEnabled,
+            moviesEnabled = moviesEnabled,
+            seriesEnabled = seriesEnabled
+        )
 
-        /** A recording auto-switch notification carries the recording to watch in this extra. */
-        const val EXTRA_WATCH_RECORDING = "opentv.watch_recording"
-    }
-}
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .weight(1f)
+        ) {
 
-object Routes {
-    const val HOME = "home"
-    const val ADD_SOURCE = "add-source"
-    const val PLAYER = "player/{channelId}"
-    const val SEARCH = "search"
-    const val EPG_SETTINGS = "epg-settings"
-    const val APP_SETTINGS = "app-settings"
-    const val SETTINGS_HUB = "settings"
-    const val PROVIDERS = "providers"
-    const val ADDONS = "addons"
-    const val CHANNELS = "channels"
-    const val WEB_MANAGER = "web-manager"
-    const val PROFILES = "profiles"
-    const val PARENTAL = "parental"
-    const val SYNC = "sync"
-    const val REC_SETTINGS = "recording-settings"
-    const val ABOUT = "about"
-    const val SERIES_DETAIL = "series/{seriesId}"
-    const val MOVIE_DETAIL = "movie/{movieId}"
-    const val EDIT_SOURCE = "edit-source/{sourceId}"
+            when (currentTab) {
 
-    // A person's name goes in a query arg, URL-encoded, so spaces and punctuation survive the round
-    // trip — the same inline-encode/decode approach as the VOD player below.
-    const val PERSON = "person?name={name}"
+                FreeflexTab.HOME -> {
+                    FreeflexHomeScreen(
+                        activeProfileName = activeProfileName,
+                        hasSources = hasSources,
+                        onWatchLive = {
+                            currentTab = FreeflexTab.LIVE
+                        },
+                        onOpenMovies = {
+                            currentTab = FreeflexTab.MOVIES
+                        },
+                        onOpenShows = {
+                            currentTab = FreeflexTab.SHOWS
+                        },
+                        onOpenRecordings = {
+                            currentTab = FreeflexTab.RECORDINGS
+                        },
+                        onOpenSettings = onOpenSettings,
+                        onOpenProfiles = onOpenProfiles,
+                        onOpenProviders = onOpenProviders
+                    )
+                }
 
-    // VOD plays carry the stream inline; a movie/episode is a one-off URL, not a stored id
-    // the player can look up the way a channel is.
-    const val VOD_PLAYER = "vod?key={key}&url={url}&title={title}&ua={ua}"
+                FreeflexTab.LIVE -> {
+                    HomeScreen(
+                        isTelevision = isTelevision,
+                        hasSources = hasSources,
+                        isSyncing = isSyncing,
+                        onPlayChannel = onPlayChannel,
+                        onAddSource = onAddSource,
+                        onRefresh = onRefresh,
+                        onPlayCatchup = onPlayCatchup
+                    )
+                }
 
-    fun player(channelId: Long) = "player/$channelId"
-    fun seriesDetail(seriesId: Long) = "series/$seriesId"
-    fun movieDetail(movieId: Long) = "movie/$movieId"
-    fun editSource(sourceId: Long) = "edit-source/$sourceId"
-    fun person(name: String) = "person?name=${java.net.URLEncoder.encode(name, "UTF-8")}"
-    fun vodPlayer(key: String, url: String, title: String, ua: String): String {
-        fun e(v: String) = java.net.URLEncoder.encode(v, "UTF-8")
-        return "vod?key=${e(key)}&url=${e(url)}&title=${e(title)}&ua=${e(ua)}"
-    }
-}
+                FreeflexTab.MOVIES -> {
+                    MoviesScreen(
+                        onOpenMovie = onOpenMovie,
+                        onResume = onResume,
+                        onOpenSearch = onOpenSearch,
+                        hasSources = hasSources,
+                        isSyncing = isSyncing
+                    )
+                }
 
-@Composable
-private fun OpenTvApp(isTelevision: Boolean) {
-    val navController = rememberNavController()
-    val sourcesViewModel: SourcesViewModel = viewModel()
-    val vodViewModel: VodViewModel = viewModel()
-    val profilesViewModel: ProfilesViewModel = viewModel()
-    val sourcesUi by sourcesViewModel.ui.collectAsState()
-    val profiles by profilesViewModel.profiles.collectAsState()
-    val activeProfileId by profilesViewModel.activeProfileId.collectAsState()
-    val activeProfileName = profiles.firstOrNull { it.id == activeProfileId }?.name ?: "Me"
+                FreeflexTab.SHOWS -> {
+                    SeriesScreen(
+                        onOpenSeries = onOpenSeries,
+                        onResume = onResume,
+                        onOpenSearch = onOpenSearch,
+                        hasSources = hasSources,
+                        isSyncing = isSyncing
+                    )
+                }
 
-    // Until the saved sources have loaded from the database, we cannot tell a first run from a
-    // returning user — and guessing "first run" drops a returning user on the setup screen and
-    // asks for their provider again. NavHost locks in its start destination on first
-    // composition, so wait for that first load before building it.
-    if (!sourcesUi.loaded) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-        return
-    }
-
-    // First run goes straight to setup — an empty channel list with no explanation is the
-    // worst possible first impression.
-    val start = if (sourcesUi.sources.isEmpty()) Routes.ADD_SOURCE else Routes.HOME
-
-    // Boot to last channel: if enabled and we have one, jump straight into the player on launch.
-    // Runs once; backing out returns to the guide and doesn't re-trigger.
-    val bootContext = androidx.compose.ui.platform.LocalContext.current
-    val bootSettings = remember { ServiceLocator.get(bootContext).settings }
-    LaunchedEffect(start) {
-        if (start == Routes.HOME && bootSettings.resumeLastChannel.value && bootSettings.lastChannelId != 0L) {
-            navController.navigate(Routes.player(bootSettings.lastChannelId))
-        }
-    }
-
-    // A tapped reminder notification asks for a specific channel. Consume it so it fires once and
-    // never re-triggers on a later launch.
-    val playRequest by app.opentv.core.PlayRequests.channelId.collectAsState()
-    LaunchedEffect(playRequest) {
-        val id = playRequest
-        if (id != null && id != 0L) {
-            app.opentv.core.PlayRequests.consume()
-            navController.navigate(Routes.player(id))
-        }
-    }
-
-    // Auto-switch: a scheduled recording started, so move the live view onto the recording file
-    // (single-connection safe). Ignore a stale request a long-backgrounded app only now sees.
-    val watchRequest by app.opentv.core.RecordingSignals.watch.collectAsState()
-    LaunchedEffect(watchRequest) {
-        val req = watchRequest ?: return@LaunchedEffect
-        app.opentv.core.RecordingSignals.consumeWatch()
-        val fresh = System.currentTimeMillis() - req.requestedAtMillis < 10 * 60_000L
-        if (req.recordingId != 0L && fresh) {
-            val rec = runCatching {
-                ServiceLocator.get(bootContext).recordingRepository.byId(req.recordingId)
-            }.getOrNull() ?: return@LaunchedEffect
-            runCatching {
-                navController.navigate(
-                    Routes.vodPlayer(
-                        key = "rec:${rec.id}",
-                        url = "optvrec://${rec.id}",
-                        title = rec.title,
-                        ua = rec.userAgent,
-                    ),
-                ) {
-                    launchSingleTop = true
-                    // Drop the live channel we switched away from off the back stack, so Back from
-                    // the recording returns to the home screen — never to a live stream. On a single-
-                    // connection line, returning to live TV while still recording would open a second
-                    // stream and risk the provider banning the account.
-                    popUpTo(Routes.PLAYER) { inclusive = true }
+                FreeflexTab.RECORDINGS -> {
+                    RecordingsScreen(
+                        onPlay = onPlayRecording
+                    )
                 }
             }
         }
     }
-
-    Box(Modifier.fillMaxSize()) {
-        NavHost(navController = navController, startDestination = start) {
-            composable(Routes.ADD_SOURCE) {
-                AddSourceScreen(
-                    viewModel = sourcesViewModel,
-                    onFinished = {
-                        navController.navigate(Routes.HOME) {
-                            popUpTo(Routes.ADD_SOURCE) { inclusive = true }
-                        }
-                    },
-                )
-            }
-
-            composable(Routes.EDIT_SOURCE) { entry ->
-                val sourceId = entry.arguments?.getString("sourceId")?.toLongOrNull() ?: return@composable
-                AddSourceScreen(
-                    viewModel = sourcesViewModel,
-                    editingSourceId = sourceId,
-                    onFinished = { navController.popBackStack() },
-                )
-            }
-
-            composable(Routes.HOME) {
-                MainScreen(
-                    isTelevision = isTelevision,
-                    hasSources = sourcesUi.sources.isNotEmpty(),
-                    isSyncing = sourcesUi.syncing,
-                    onPlayChannel = { channel -> navController.navigate(Routes.player(channel.id)) },
-                    onOpenMovie = { movie ->
-                        navController.navigate(Routes.movieDetail(movie.id))
-                    },
-                    onOpenSeries = { series ->
-                        navController.navigate(Routes.seriesDetail(series.id))
-                    },
-                    onResume = { key, url, title ->
-                        navController.navigate(
-                            Routes.vodPlayer(key, url, title, "OpenTV/0.1 (Android)"),
-                        )
-                    },
-                    onAddSource = { navController.navigate(Routes.ADD_SOURCE) },
-                    onRefresh = sourcesViewModel::refreshAll,
-                    onOpenSearch = { navController.navigate(Routes.SEARCH) },
-                    onOpenSettings = { navController.navigate(Routes.SETTINGS_HUB) },
-                    onOpenProfiles = { navController.navigate(Routes.PROFILES) },
-                    onPlayRecording = { rec ->
-                        // A NAS recording plays straight off its smb:// locator and a USB one off
-                        // its content:// document URI (Media3 reads both); an internal one through
-                        // a file:// uri. An internal recording that's still capturing plays through
-                        // the tail-following optvrec:// source, so it can be watched as it records
-                        // with no second connection to the provider. All go through the VOD player.
-                        val stillRecording = rec.status == app.opentv.data.model.RecordingStatus.RECORDING
-                        // Internal and NAS in-progress recordings are both tail-followable via the
-                        // growing source; USB (content://) isn't.
-                        val growable = !app.opentv.recording.RecordingStorage.isContent(rec.filePath) &&
-                            !app.opentv.recording.RecordingStorage.isUsbPlaceholder(rec.filePath)
-                        val url = when {
-                            stillRecording && growable -> "optvrec://${rec.id}"
-                            app.opentv.recording.SmbClient.isSmb(rec.filePath) -> rec.filePath
-                            app.opentv.recording.RecordingStorage.isContent(rec.filePath) -> rec.filePath
-                            else -> android.net.Uri.fromFile(java.io.File(rec.filePath)).toString()
-                        }
-                        navController.navigate(
-                            Routes.vodPlayer(
-                                key = "rec:${rec.id}",
-                                url = url,
-                                title = rec.title,
-                                ua = rec.userAgent,
-                            ),
-                        )
-                    },
-                    onPlayCatchup = { key, url, title, ua ->
-                        // Catch-up is a seekable archive stream — plays through the VOD player.
-                        navController.navigate(Routes.vodPlayer(key, url, title, ua))
-                    },
-                    activeProfileName = activeProfileName,
-                )
-            }
-
-            composable(Routes.PROFILES) {
-                ProfilesScreen(
-                    viewModel = profilesViewModel,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(Routes.SEARCH) {
-                SearchScreen(
-                    onPlayChannel = { channel -> navController.navigate(Routes.player(channel.id)) },
-                    onPlayMovie = { movie ->
-                        navController.navigate(
-                            Routes.vodPlayer(
-                                key = "movie:${movie.id}",
-                                url = movie.streamUrl,
-                                title = movie.displayTitle,
-                                ua = "OpenTV/0.1 (Android)",
-                            ),
-                        )
-                    },
-                    onOpenSeries = { series -> navController.navigate(Routes.seriesDetail(series.id)) },
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(Routes.SETTINGS_HUB) {
-                SettingsHubScreen(
-                    onOpenProviders = { navController.navigate(Routes.PROVIDERS) },
-                    onOpenAddons = { navController.navigate(Routes.ADDONS) },
-                    onOpenGuide = { navController.navigate(Routes.EPG_SETTINGS) },
-                    onOpenChannels = { navController.navigate(Routes.CHANNELS) },
-                    onOpenWebManager = { navController.navigate(Routes.WEB_MANAGER) },
-                    onOpenDisplay = { navController.navigate(Routes.APP_SETTINGS) },
-                    onOpenParental = { navController.navigate(Routes.PARENTAL) },
-                    onOpenSync = { navController.navigate(Routes.SYNC) },
-                    onOpenRecordings = { navController.navigate(Routes.REC_SETTINGS) },
-                    onOpenAbout = { navController.navigate(Routes.ABOUT) },
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(Routes.SYNC) {
-                SyncScreen(onBack = { navController.popBackStack() })
-            }
-
-            composable(Routes.REC_SETTINGS) {
-                RecordingSettingsScreen(onBack = { navController.popBackStack() })
-            }
-
-            composable(Routes.CHANNELS) {
-                ChannelManagerScreen(onBack = { navController.popBackStack() })
-            }
-
-            composable(Routes.WEB_MANAGER) {
-                WebManagerScreen(onBack = { navController.popBackStack() })
-            }
-
-            composable(Routes.PARENTAL) {
-                ParentalControlsScreen(onBack = { navController.popBackStack() })
-            }
-
-            composable(Routes.PROVIDERS) {
-                ProvidersScreen(
-                    viewModel = sourcesViewModel,
-                    onAddSource = { navController.navigate(Routes.ADD_SOURCE) },
-                    onEditSource = { src -> navController.navigate(Routes.editSource(src.id)) },
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(Routes.ADDONS) {
-                StremioAddonsScreen(onBack = { navController.popBackStack() })
-            }
-
-            composable(Routes.ABOUT) {
-                AboutScreen(onBack = { navController.popBackStack() })
-            }
-
-            composable(Routes.EPG_SETTINGS) {
-                EpgSettingsScreen(onBack = { navController.popBackStack() })
-            }
-
-            composable(Routes.APP_SETTINGS) {
-                AppSettingsScreen(onBack = { navController.popBackStack() })
-            }
-
-            composable(Routes.PLAYER) { entry ->
-                val channelId = entry.arguments?.getString("channelId")?.toLongOrNull()
-                PlayerScreen(
-                    channelId = channelId,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(Routes.SERIES_DETAIL) { entry ->
-                val seriesId = entry.arguments?.getString("seriesId")?.toLongOrNull() ?: return@composable
-                SeriesDetailScreen(
-                    seriesId = seriesId,
-                    viewModel = vodViewModel,
-                    onPlayEpisode = { key, url, title ->
-                        navController.navigate(
-                            Routes.vodPlayer(key, url, title, "OpenTV/0.1 (Android)"),
-                        )
-                    },
-                    onOpenSeries = { series -> navController.navigate(Routes.seriesDetail(series.id)) },
-                    onOpenPerson = { name -> navController.navigate(Routes.person(name)) },
-                )
-            }
-
-            composable(Routes.MOVIE_DETAIL) { entry ->
-                val movieId = entry.arguments?.getString("movieId")?.toLongOrNull() ?: return@composable
-                MovieDetailScreen(
-                    movieId = movieId,
-                    viewModel = vodViewModel,
-                    onPlay = { movie ->
-                        navController.navigate(
-                            Routes.vodPlayer(
-                                key = "movie:${movie.id}",
-                                url = movie.streamUrl,
-                                title = movie.displayTitle,
-                                ua = "OpenTV/0.1 (Android)",
-                            ),
-                        )
-                    },
-                    onPlayUrl = { key, url, title ->
-                        navController.navigate(
-                            Routes.vodPlayer(key = key, url = url, title = title, ua = "OpenTV/0.1 (Android)"),
-                        )
-                    },
-                    onOpenMovie = { movie -> navController.navigate(Routes.movieDetail(movie.id)) },
-                    onOpenPerson = { name -> navController.navigate(Routes.person(name)) },
-                )
-            }
-
-            composable(Routes.PERSON) { entry ->
-                val name = entry.arguments?.getString("name")
-                    ?.let { java.net.URLDecoder.decode(it, "UTF-8") }.orEmpty()
-                PersonScreen(
-                    name = name,
-                    viewModel = vodViewModel,
-                    onOpenMovie = { movie -> navController.navigate(Routes.movieDetail(movie.id)) },
-                    onOpenSeries = { series -> navController.navigate(Routes.seriesDetail(series.id)) },
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(Routes.VOD_PLAYER) { entry ->
-                fun arg(name: String) = entry.arguments?.getString(name)
-                    ?.let { java.net.URLDecoder.decode(it, "UTF-8") }.orEmpty()
-                VodPlayerScreen(
-                    mediaKey = arg("key"),
-                    streamUrl = arg("url"),
-                    title = arg("title"),
-                    userAgent = arg("ua").ifEmpty { "OpenTV/0.1 (Android)" },
-                    onBack = { navController.popBackStack() },
-                )
-            }
-        }
-
-        // Sits above the whole nav graph so a found update can prompt from any screen.
-        UpdateGate()
-
-        // "About to switch to a recording" banner — shows 30s before an auto-switch fires.
-        RecordingSwitchBanner()
-    }
 }
 
-/**
- * A slim banner shown 30 seconds before a scheduled recording takes over the screen (single-
- * connection auto-switch). It gives the viewer a heads-up and a way out: "Keep watching" suppresses
- * the switch for that booking. It clears itself once the switch would have happened.
- */
+
+/* ---------------------------------------------------------
+   FREEFL3X TV HOME SCREEN
+   --------------------------------------------------------- */
+
 @Composable
-private fun RecordingSwitchBanner() {
-    val imminent by app.opentv.core.RecordingSignals.imminent.collectAsState()
-    val current = imminent ?: return
+private fun FreeflexHomeScreen(
+    activeProfileName: String,
+    hasSources: Boolean,
+    onWatchLive: () -> Unit,
+    onOpenMovies: () -> Unit,
+    onOpenShows: () -> Unit,
+    onOpenRecordings: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenProfiles: () -> Unit,
+    onOpenProviders: () -> Unit
+) {
 
-    // Auto-clear a little after the switch instant, in case the switch itself never lands.
-    LaunchedEffect(current.recordingId) {
-        val wait = (current.startAtMillis + 5_000L) - System.currentTimeMillis()
-        kotlinx.coroutines.delay(wait.coerceIn(5_000L, 60_000L))
-        if (app.opentv.core.RecordingSignals.imminent.value?.recordingId == current.recordingId) {
-            app.opentv.core.RecordingSignals.clearImminent()
-        }
-    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                start = 42.dp,
+                end = 42.dp,
+                top = 32.dp,
+                bottom = 28.dp
+            )
+    ) {
 
-    Box(Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.TopCenter) {
+        /* HEADER */
+
         Row(
-            Modifier
-                .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .padding(horizontal = 18.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+
+                Text(
+                    text = "FREEFL3X TV",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(
+                    modifier = Modifier.height(6.dp)
+                )
+
+                Text(
+                    text = "Welcome back, $activeProfileName",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(
+                    modifier = Modifier.height(4.dp)
+                )
+
+                Text(
+                    text = "Your entertainment, your way.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            OutlinedButton(
+                onClick = onOpenProfiles
+            ) {
+
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile"
+                )
+
+                Spacer(
+                    modifier = Modifier.width(8.dp)
+                )
+
+                Text("Profile")
+            }
+        }
+
+        Spacer(
+            modifier = Modifier.height(30.dp)
+        )
+
+
+        /* WATCH LIVE */
+
+        Button(
+            onClick = onWatchLive,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(74.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+
             Icon(
-                Icons.Filled.FiberManualRecord,
-                contentDescription = null,
-                tint = Color(0xFFE53935),
-                modifier = Modifier.size(18.dp),
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = "Watch Live",
+                modifier = Modifier.size(30.dp)
             )
-            Spacer(Modifier.width(10.dp))
+
+            Spacer(
+                modifier = Modifier.width(12.dp)
+            )
+
             Text(
-                stringResource(R.string.rec_switch_banner, current.title, current.channelName),
+                text = "WATCH LIVE",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+
+        Spacer(
+            modifier = Modifier.height(32.dp)
+        )
+
+
+        /* CONTINUE WATCHING */
+
+        SectionTitle(
+            title = "Continue Watching"
+        )
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+
+            items(
+                listOf(
+                    "Continue Watching",
+                    "Recently Watched",
+                    "Your Library",
+                    "Watch Again"
+                )
+            ) { title ->
+
+                FreeflexMediaCard(
+                    title = title,
+                    subtitle = "Continue watching",
+                    icon = Icons.Default.PlayArrow,
+                    onClick = onOpenMovies
+                )
+            }
+        }
+
+
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
+
+
+        /* LIVE TV */
+
+        SectionTitle(
+            title = "Live TV"
+        )
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+
+            items(
+                listOf(
+                    "Live Channels",
+                    "TV Guide",
+                    "Favorites",
+                    "Recently Watched"
+                )
+            ) { title ->
+
+                FreeflexMediaCard(
+                    title = title,
+                    subtitle = "Live television",
+                    icon = Icons.Default.LiveTv,
+                    onClick = onWatchLive
+                )
+            }
+        }
+
+
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
+
+
+        /* MOVIES */
+
+        SectionTitle(
+            title = "Movies"
+        )
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+
+            items(
+                listOf(
+                    "Movies",
+                    "Recently Added",
+                    "Popular Movies",
+                    "Continue Watching"
+                )
+            ) { title ->
+
+                FreeflexMediaCard(
+                    title = title,
+                    subtitle = "Movies",
+                    icon = Icons.Default.Movie,
+                    onClick = onOpenMovies
+                )
+            }
+        }
+
+
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
+
+
+        /* QUICK ACTIONS */
+
+        SectionTitle(
+            title = "Quick Actions"
+        )
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+
+            QuickAction(
+                title = "TV GUIDE",
+                icon = Icons.Default.Tv,
+                onClick = onWatchLive
+            )
+
+            QuickAction(
+                title = "PLAYLISTS",
+                icon = Icons.Default.LiveTv,
+                onClick = onOpenProviders
+            )
+
+            QuickAction(
+                title = "FAVORITES",
+                icon = Icons.Default.Favorite,
+                onClick = onWatchLive
+            )
+
+            QuickAction(
+                title = "SETTINGS",
+                icon = Icons.Default.Settings,
+                onClick = onOpenSettings
+            )
+        }
+
+
+        if (!hasSources) {
+
+            Spacer(
+                modifier = Modifier.height(20.dp)
+            )
+
+            Text(
+                text = "Add a TV provider to start watching.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Spacer(Modifier.width(14.dp))
-            var focused by remember { mutableStateOf(false) }
-            Text(
-                stringResource(R.string.rec_switch_keep_watching),
-                style = MaterialTheme.typography.labelLarge,
-                color = if (focused) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (focused) MaterialTheme.colorScheme.primary else Color.Transparent)
-                    .onFocusChanged { focused = it.isFocused }
-                    .focusable()
-                    .clickable { app.opentv.core.RecordingSignals.suppress(current.recordingId) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
 
-/**
- * Detects a ten-foot device.
- *
- * Checked at runtime rather than by shipping a separate leanback build: one APK for phone,
- * tablet, Android TV and Fire TV means one thing to release and one thing to test.
- */
-fun isRunningOnTelevision(context: Context): Boolean {
-    val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
-    if (uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION) return true
-    val packageManager = context.packageManager
-    return packageManager.hasSystemFeature("android.software.leanback") ||
-        packageManager.hasSystemFeature("android.hardware.type.television")
+
+/* ---------------------------------------------------------
+   SIDEBAR
+   --------------------------------------------------------- */
+
+@Composable
+private fun FreeflexSideBar(
+    currentTab: FreeflexTab,
+    onHome: () -> Unit,
+    onLive: () -> Unit,
+    onMovies: () -> Unit,
+    onShows: () -> Unit,
+    onRecordings: () -> Unit,
+    onSearch: () -> Unit,
+    onSettings: () -> Unit,
+    onProfiles: () -> Unit,
+    activeProfileName: String,
+    liveEnabled: Boolean,
+    moviesEnabled: Boolean,
+    seriesEnabled: Boolean
+) {
+
+    Column(
+        modifier = Modifier
+            .width(92.dp)
+            .fillMaxHeight()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(
+                vertical = 20.dp,
+                horizontal = 10.dp
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+
+        Text(
+            text = "FX",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(
+            modifier = Modifier.height(30.dp)
+        )
+
+        SideBarItem(
+            icon = Icons.Default.Tv,
+            label = "Home",
+            selected = currentTab == FreeflexTab.HOME,
+            onClick = onHome
+        )
+
+        if (liveEnabled) {
+
+            SideBarItem(
+                icon = Icons.Default.LiveTv,
+                label = "Live",
+                selected = currentTab == FreeflexTab.LIVE,
+                onClick = onLive
+            )
+        }
+
+        if (moviesEnabled) {
+
+            SideBarItem(
+                icon = Icons.Default.Movie,
+                label = "Movies",
+                selected = currentTab == FreeflexTab.MOVIES,
+                onClick = onMovies
+            )
+        }
+
+        if (seriesEnabled) {
+
+            SideBarItem(
+                icon = Icons.Default.Tv,
+                label = "Shows",
+                selected = currentTab == FreeflexTab.SHOWS,
+                onClick = onShows
+            )
+        }
+
+        SideBarItem(
+            icon = Icons.Default.PlayArrow,
+            label = "Recordings",
+            selected = currentTab == FreeflexTab.RECORDINGS,
+            onClick = onRecordings
+        )
+
+        Spacer(
+            modifier = Modifier.weight(1f)
+        )
+
+        SideBarItem(
+            icon = Icons.Default.Search,
+            label = "Search",
+            selected = false,
+            onClick = onSearch
+        )
+
+        SideBarItem(
+            icon = Icons.Default.Person,
+            label = activeProfileName,
+            selected = false,
+            onClick = onProfiles
+        )
+
+        SideBarItem(
+            icon = Icons.Default.Settings,
+            label = "Settings",
+            selected = false,
+            onClick = onSettings
+        )
+    }
+}
+
+
+/* ---------------------------------------------------------
+   SECTION TITLE
+   --------------------------------------------------------- */
+
+@Composable
+private fun SectionTitle(
+    title: String
+) {
+
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold
+    )
+}
+
+
+/* ---------------------------------------------------------
+   MEDIA CARD
+   --------------------------------------------------------- */
+
+@Composable
+private fun FreeflexMediaCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+
+    var focused by remember {
+        mutableStateOf(false)
+    }
+
+    val background = if (focused) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    val textColor = if (focused) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    Column(
+        modifier = Modifier
+            .width(190.dp)
+            .height(120.dp)
+            .clip(
+                RoundedCornerShape(14.dp)
+            )
+            .background(background)
+            .onFocusChanged {
+                focused = it.isFocused
+            }
+            .clickable {
+                onClick()
+            }
+            .focusable()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            tint = textColor,
+            modifier = Modifier.size(30.dp)
+        )
+
+        Column {
+
+            Text(
+                text = title,
+                color = textColor,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Text(
+                text = subtitle,
+                color = textColor.copy(alpha = 0.75f),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+
+/* ---------------------------------------------------------
+   QUICK ACTION
+   --------------------------------------------------------- */
+
+@Composable
+private fun QuickAction(
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+
+    var focused by remember {
+        mutableStateOf(false)
+    }
+
+    val background = if (focused) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    val contentColor = if (focused) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    Row(
+        modifier = Modifier
+            .clip(
+                RoundedCornerShape(12.dp)
+            )
+            .background(background)
+            .onFocusChanged {
+                focused = it.isFocused
+            }
+            .clickable {
+                onClick()
+            }
+            .focusable()
+            .padding(
+                horizontal = 18.dp,
+                vertical = 14.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            tint = contentColor
+        )
+
+        Spacer(
+            modifier = Modifier.width(8.dp)
+        )
+
+        Text(
+            text = title,
+            color = contentColor,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+
+/* ---------------------------------------------------------
+   SIDEBAR ITEM
+   --------------------------------------------------------- */
+
+@Composable
+private fun SideBarItem(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+
+    var focused by remember {
+        mutableStateOf(false)
+    }
+
+    val background = when {
+        focused -> MaterialTheme.colorScheme.primary
+        selected -> MaterialTheme.colorScheme.surfaceVariant
+        else -> Color.Transparent
+    }
+
+    val contentColor = when {
+        focused -> MaterialTheme.colorScheme.onPrimary
+        selected -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp)
+            .clip(
+                RoundedCornerShape(12.dp)
+            )
+            .background(background)
+            .onFocusChanged {
+                focused = it.isFocused
+            }
+            .clickable {
+                onClick()
+            }
+            .focusable()
+            .padding(
+                vertical = 10.dp
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = contentColor,
+            modifier = Modifier.size(24.dp)
+        )
+
+        Spacer(
+            modifier = Modifier.height(4.dp)
+        )
+
+        Text(
+            text = label,
+            color = contentColor,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
 }
