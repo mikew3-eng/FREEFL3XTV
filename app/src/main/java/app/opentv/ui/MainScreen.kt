@@ -1,18 +1,13 @@
 /*
- * This file is part of OpenTV.
- * Copyright (C) 2026 The OpenTV Contributors
- * Licensed under the GNU General Public License v3.0 or later.
+ * FREEFL3X TV
+ * Home screen redesign based on OpenTV.
  */
 package app.opentv.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.animateDpAsState
-import app.opentv.R
-import app.opentv.core.findActivity
-import app.opentv.core.StatusBus
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,20 +20,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tv
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,16 +50,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import app.opentv.core.AppSettings
-import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.opentv.core.AppSettings
+import app.opentv.core.findActivity
 import app.opentv.data.model.Channel
 import app.opentv.data.model.Movie
 import app.opentv.data.model.Recording
@@ -70,21 +68,13 @@ import app.opentv.ui.recordings.RecordingsScreen
 import app.opentv.ui.vod.MoviesScreen
 import app.opentv.ui.vod.SeriesScreen
 
-/**
- * The shell: a slim navigation rail down the left over a content area. The rail sits collapsed as
- * an icon strip and expands to show labels the moment focus lands in it — the TiviMate-style side
- * menu people asked for, instead of a top bar that ate a row of the guide. It overlays the content
- * rather than pushing it, so expanding the menu never reflows the guide underneath.
- */
-enum class Tab(val labelRes: Int, val icon: ImageVector) {
-    LIVE(R.string.nav_live_tv, Icons.Filled.LiveTv),
-    MOVIES(R.string.nav_movies, Icons.Filled.Movie),
-    SHOWS(R.string.nav_shows, Icons.Filled.Tv),
-    RECORDINGS(R.string.nav_recordings, Icons.Filled.FiberManualRecord),
+private enum class FreeflexTab {
+    HOME,
+    LIVE,
+    MOVIES,
+    SHOWS,
+    RECORDINGS
 }
-
-private val RAIL_COLLAPSED = 76.dp
-private val RAIL_EXPANDED = 236.dp
 
 @Composable
 fun MainScreen(
@@ -104,261 +94,802 @@ fun MainScreen(
     onPlayCatchup: (mediaKey: String, url: String, title: String, ua: String) -> Unit,
     activeProfileName: String,
 ) {
-    // Content-type toggles: a switched-off type has its tab hidden here (and its sync skipped in
-    // CatalogRepository). Recordings is never a content type, so it always stays — which also means
-    // there is always at least one tab and never a blank shell, even with all three types off.
     val context = LocalContext.current
-    val settings = remember { AppSettings.get(context) }
+
+    val settings = remember {
+        AppSettings.get(context)
+    }
+
     val liveEnabled by settings.liveEnabled.collectAsState()
     val moviesEnabled by settings.moviesEnabled.collectAsState()
     val seriesEnabled by settings.seriesEnabled.collectAsState()
-    val visibleTabs = remember(liveEnabled, moviesEnabled, seriesEnabled) {
-        buildList {
-            if (liveEnabled) add(Tab.LIVE)
-            if (moviesEnabled) add(Tab.MOVIES)
-            if (seriesEnabled) add(Tab.SHOWS)
-            add(Tab.RECORDINGS)
+
+    var currentTab by remember {
+        mutableStateOf(FreeflexTab.HOME)
+    }
+
+    var showExit by remember {
+        mutableStateOf(false)
+    }
+
+    BackHandler {
+        if (currentTab != FreeflexTab.HOME) {
+            currentTab = FreeflexTab.HOME
+        } else {
+            showExit = true
         }
     }
-    // The default/home tab is the first visible one — Live TV normally, otherwise the first type
-    // still switched on (or Recordings if none are).
-    val homeTab = visibleTabs.first()
 
-    var tab by remember { mutableStateOf(homeTab) }
-
-    // If the selected tab gets hidden (its type toggled off while it's open), drop back to the
-    // home tab so the content area never tries to show a tab that's no longer there.
-    LaunchedEffect(visibleTabs) {
-        if (tab !in visibleTabs) tab = homeTab
-    }
-
-    // Back from a non-home tab returns to the home tab rather than dropping out of the app.
-    BackHandler(enabled = tab != homeTab) { tab = homeTab }
-
-    // On the home tab, Back would otherwise drop straight out to the TV launcher — one stray press
-    // and you've closed the app. Ask first. (A dialog or panel open in a child screen swallows Back
-    // before this, so this only fires at the true root.)
-    var showExit by remember { mutableStateOf(false) }
-    BackHandler(enabled = tab == homeTab) { showExit = true }
     if (showExit) {
         AlertDialog(
-            onDismissRequest = { showExit = false },
-            title = { Text(stringResource(R.string.exit_title)) },
-            text = { Text(stringResource(R.string.exit_body)) },
+            onDismissRequest = {
+                showExit = false
+            },
+            title = {
+                Text("Exit FREEFL3X TV?")
+            },
+            text = {
+                Text("Are you sure you want to close FREEFL3X TV?")
+            },
             confirmButton = {
-                TextButton(onClick = { showExit = false; context.findActivity()?.finish() }) {
-                    Text(stringResource(R.string.exit_confirm))
+                TextButton(
+                    onClick = {
+                        showExit = false
+                        context.findActivity()?.finish()
+                    }
+                ) {
+                    Text("Exit")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showExit = false }) { Text(stringResource(R.string.exit_cancel)) }
-            },
+                TextButton(
+                    onClick = {
+                        showExit = false
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
         )
     }
-
-    // The rail sits beside the content and pushes it, rather than floating over it. The Live TV
-    // screen has its own category rail down its left edge, and an overlaying menu would land on top
-    // of it and leave a sliver poking out — so they live side by side and never collide.
-    Column(Modifier.fillMaxSize()) {
-      Row(Modifier.weight(1f).fillMaxWidth()) {
-        NavRail(
-            tabs = visibleTabs,
-            current = tab,
-            onSelect = { tab = it },
-            onOpenSearch = onOpenSearch,
-            onOpenSettings = onOpenSettings,
-            onOpenProfiles = onOpenProfiles,
-            activeProfileName = activeProfileName,
-        )
-
-        Box(Modifier.weight(1f).fillMaxHeight()) {
-            when (tab) {
-                Tab.LIVE -> HomeScreen(
-                    isTelevision = isTelevision,
-                    hasSources = hasSources,
-                    isSyncing = isSyncing,
-                    onPlayChannel = onPlayChannel,
-                    onAddSource = onAddSource,
-                    onRefresh = onRefresh,
-                    onPlayCatchup = onPlayCatchup,
-                )
-                Tab.MOVIES -> MoviesScreen(
-                    onOpenMovie = onOpenMovie,
-                    onResume = onResume,
-                    onOpenSearch = onOpenSearch,
-                    hasSources = hasSources,
-                    isSyncing = isSyncing,
-                )
-                Tab.SHOWS -> SeriesScreen(
-                    onOpenSeries = onOpenSeries,
-                    onResume = onResume,
-                    onOpenSearch = onOpenSearch,
-                    hasSources = hasSources,
-                    isSyncing = isSyncing,
-                )
-                Tab.RECORDINGS -> RecordingsScreen(onPlay = onPlayRecording)
-            }
-        }
-      }
-      StatusBar()
-    }
-}
-
-/**
- * A slim line along the bottom that says what the app is doing in the background — loading
- * channels, building the guide, loading movies — so a slow moment on a big provider reads as work
- * in progress, not a frozen screen. Invisible when there's nothing to report.
- */
-@Composable
-private fun StatusBar() {
-    val message by StatusBus.message.collectAsState()
-    val progress by StatusBus.progress.collectAsState()
-    val text = message ?: return
-    val p = progress
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (p == null) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(14.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            } else {
-                Text(
-                    "${(p * 100).toInt()}%",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Text(
-                text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (p != null) {
-            Spacer(Modifier.height(4.dp))
-            LinearProgressIndicator(
-                progress = { p },
-                modifier = Modifier.fillMaxWidth().height(3.dp),
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-    }
-}
-
-@Composable
-private fun NavRail(
-    tabs: List<Tab>,
-    current: Tab,
-    onSelect: (Tab) -> Unit,
-    onOpenSearch: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenProfiles: () -> Unit,
-    activeProfileName: String,
-    modifier: Modifier = Modifier,
-) {
-    // Expand whenever focus is anywhere inside the rail; collapse back to icons when it leaves.
-    var expanded by remember { mutableStateOf(false) }
-    val width by animateDpAsState(
-        targetValue = if (expanded) RAIL_EXPANDED else RAIL_COLLAPSED,
-        label = "railWidth",
-    )
-
-    Column(
-        modifier
-            .width(width)
-            .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.surface)
-            .focusGroup()
-            .onFocusChanged { expanded = it.hasFocus }
-            .padding(vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        // Brand: the logo mark alone when collapsed, the mark + "FREEFL3X TV" wordmark when open. The
-        // name stays on purpose — it's what people search for.
-        Row(
-            Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Image(
-                painter = painterResource(R.drawable.ic_opentv_logo),
-                contentDescription = "FREEFL3X TV",
-                modifier = Modifier.size(34.dp),
-            )
-            if (expanded) {
-                Spacer(Modifier.width(12.dp))
-                Text(
-                     "FREEFL3X TV",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-
-        tabs.forEach { t ->
-            RailItem(t.icon, stringResource(t.labelRes), expanded, current == t) { onSelect(t) }
-        }
-
-        Spacer(Modifier.height(1.dp).fillMaxWidth())
-        Spacer(Modifier.weight(1f))
-
-        RailItem(Icons.Filled.Search, stringResource(R.string.nav_search), expanded, false, onOpenSearch)
-        RailItem(Icons.Filled.Person, activeProfileName, expanded, false, onOpenProfiles)
-        RailItem(Icons.Filled.Settings, stringResource(R.string.nav_settings), expanded, false, onOpenSettings)
-    }
-}
-
-@Composable
-private fun RailItem(
-    icon: ImageVector,
-    label: String,
-    expanded: Boolean,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    var focused by remember { mutableStateOf(false) }
-    val bg = when {
-        focused -> MaterialTheme.colorScheme.primary
-        selected -> MaterialTheme.colorScheme.surfaceVariant
-        else -> MaterialTheme.colorScheme.surface
-    }
-    val tint = if (focused) MaterialTheme.colorScheme.onPrimary
-    else if (selected) MaterialTheme.colorScheme.onSurface
-    else MaterialTheme.colorScheme.onSurfaceVariant
 
     Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(bg)
-            .onFocusChanged { focused = it.isFocused }
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        Icon(icon, contentDescription = label, tint = tint)
-        if (expanded) {
-            Spacer(Modifier.width(14.dp))
+
+        FreeflexSideBar(
+            currentTab = currentTab,
+            onHome = {
+                currentTab = FreeflexTab.HOME
+            },
+            onLive = {
+                currentTab = FreeflexTab.LIVE
+            },
+            onMovies = {
+                currentTab = FreeflexTab.MOVIES
+            },
+            onShows = {
+                currentTab = FreeflexTab.SHOWS
+            },
+            onRecordings = {
+                currentTab = FreeflexTab.RECORDINGS
+            },
+            onSearch = onOpenSearch,
+            onSettings = onOpenSettings,
+            onProfiles = onOpenProfiles,
+            activeProfileName = activeProfileName,
+            liveEnabled = liveEnabled,
+            moviesEnabled = moviesEnabled,
+            seriesEnabled = seriesEnabled
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .weight(1f)
+        ) {
+
+            when (currentTab) {
+
+                FreeflexTab.HOME -> {
+                    FreeflexHomeScreen(
+                        activeProfileName = activeProfileName,
+                        hasSources = hasSources,
+                        onWatchLive = {
+                            currentTab = FreeflexTab.LIVE
+                        },
+                        onOpenMovies = {
+                            currentTab = FreeflexTab.MOVIES
+                        },
+                        onOpenShows = {
+                            currentTab = FreeflexTab.SHOWS
+                        },
+                        onOpenRecordings = {
+                            currentTab = FreeflexTab.RECORDINGS
+                        },
+                        onOpenSettings = onOpenSettings,
+                        onOpenProfiles = onOpenProfiles
+                    )
+                }
+
+                FreeflexTab.LIVE -> {
+                    HomeScreen(
+                        isTelevision = isTelevision,
+                        hasSources = hasSources,
+                        isSyncing = isSyncing,
+                        onPlayChannel = onPlayChannel,
+                        onAddSource = onAddSource,
+                        onRefresh = onRefresh,
+                        onPlayCatchup = onPlayCatchup
+                    )
+                }
+
+                FreeflexTab.MOVIES -> {
+                    MoviesScreen(
+                        onOpenMovie = onOpenMovie,
+                        onResume = onResume,
+                        onOpenSearch = onOpenSearch,
+                        hasSources = hasSources,
+                        isSyncing = isSyncing
+                    )
+                }
+
+                FreeflexTab.SHOWS -> {
+                    SeriesScreen(
+                        onOpenSeries = onOpenSeries,
+                        onResume = onResume,
+                        onOpenSearch = onOpenSearch,
+                        hasSources = hasSources,
+                        isSyncing = isSyncing
+                    )
+                }
+
+                FreeflexTab.RECORDINGS -> {
+                    RecordingsScreen(
+                        onPlay = onPlayRecording
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+/* ---------------------------------------------------------
+   FREEFL3X TV HOME SCREEN
+   --------------------------------------------------------- */
+
+@Composable
+private fun FreeflexHomeScreen(
+    activeProfileName: String,
+    hasSources: Boolean,
+    onWatchLive: () -> Unit,
+    onOpenMovies: () -> Unit,
+    onOpenShows: () -> Unit,
+    onOpenRecordings: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenProfiles: () -> Unit
+) {
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                start = 42.dp,
+                end = 42.dp,
+                top = 32.dp,
+                bottom = 28.dp
+            )
+    ) {
+
+        /* HEADER */
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+
+                Text(
+                    text = "FREEFL3X TV",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(
+                    modifier = Modifier.height(6.dp)
+                )
+
+                Text(
+                    text = "Welcome back, $activeProfileName",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(
+                    modifier = Modifier.height(4.dp)
+                )
+
+                Text(
+                    text = "Your entertainment, your way.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            OutlinedButton(
+                onClick = onOpenProfiles
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile"
+                )
+
+                Spacer(
+                    modifier = Modifier.width(8.dp)
+                )
+
+                Text("Profile")
+            }
+        }
+
+        Spacer(
+            modifier = Modifier.height(30.dp)
+        )
+
+
+        /* WATCH LIVE */
+
+        Button(
+            onClick = onWatchLive,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(74.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = "Watch Live",
+                modifier = Modifier.size(30.dp)
+            )
+
+            Spacer(
+                modifier = Modifier.width(12.dp)
+            )
+
             Text(
-                label,
-                style = MaterialTheme.typography.titleMedium,
-                color = tint,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                text = "WATCH LIVE",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
             )
         }
+
+
+        Spacer(
+            modifier = Modifier.height(32.dp)
+        )
+
+
+        /* CONTINUE WATCHING */
+
+        SectionTitle(
+            title = "Continue Watching"
+        )
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+
+            items(
+                listOf(
+                    "Continue Watching",
+                    "Recently Watched",
+                    "Your Library",
+                    "Watch Again"
+                )
+            ) { title ->
+
+                FreeflexMediaCard(
+                    title = title,
+                    subtitle = "Continue watching",
+                    icon = Icons.Default.PlayArrow,
+                    onClick = onOpenMovies
+                )
+            }
+        }
+
+
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
+
+
+        /* LIVE TV */
+
+        SectionTitle(
+            title = "Live TV"
+        )
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+
+            items(
+                listOf(
+                    "Live Channels",
+                    "TV Guide",
+                    "Favorites",
+                    "Recently Watched"
+                )
+            ) { title ->
+
+                FreeflexMediaCard(
+                    title = title,
+                    subtitle = "Live television",
+                    icon = Icons.Default.LiveTv,
+                    onClick = onWatchLive
+                )
+            }
+        }
+
+
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
+
+
+        /* MOVIES */
+
+        SectionTitle(
+            title = "Movies"
+        )
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+
+            items(
+                listOf(
+                    "Movies",
+                    "Recently Added",
+                    "Popular Movies",
+                    "Continue Watching"
+                )
+            ) { title ->
+
+                FreeflexMediaCard(
+                    title = title,
+                    subtitle = "Movies",
+                    icon = Icons.Default.Movie,
+                    onClick = onOpenMovies
+                )
+            }
+        }
+
+
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
+
+
+        /* QUICK ACTIONS */
+
+        SectionTitle(
+            title = "Quick Actions"
+        )
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+
+            QuickAction(
+                title = "TV GUIDE",
+                icon = Icons.Default.Tv,
+                onClick = onWatchLive
+            )
+
+            QuickAction(
+                title = "PLAYLISTS",
+                icon = Icons.Default.LiveTv,
+                onClick = onOpenSettings
+            )
+
+            QuickAction(
+                title = "FAVORITES",
+                icon = Icons.Default.Favorite,
+                onClick = onWatchLive
+            )
+
+            QuickAction(
+                title = "SETTINGS",
+                icon = Icons.Default.Settings,
+                onClick = onOpenSettings
+            )
+        }
+
+
+        if (!hasSources) {
+
+            Spacer(
+                modifier = Modifier.height(20.dp)
+            )
+
+            Text(
+                text = "Add a TV provider to start watching.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+
+/* ---------------------------------------------------------
+   SIDEBAR
+   --------------------------------------------------------- */
+
+@Composable
+private fun FreeflexSideBar(
+    currentTab: FreeflexTab,
+    onHome: () -> Unit,
+    onLive: () -> Unit,
+    onMovies: () -> Unit,
+    onShows: () -> Unit,
+    onRecordings: () -> Unit,
+    onSearch: () -> Unit,
+    onSettings: () -> Unit,
+    onProfiles: () -> Unit,
+    activeProfileName: String,
+    liveEnabled: Boolean,
+    moviesEnabled: Boolean,
+    seriesEnabled: Boolean
+) {
+
+    Column(
+        modifier = Modifier
+            .width(92.dp)
+            .fillMaxHeight()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(
+                vertical = 20.dp,
+                horizontal = 10.dp
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+
+        Text(
+            text = "FX",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(
+            modifier = Modifier.height(30.dp)
+        )
+
+
+        SideBarItem(
+            icon = Icons.Default.Tv,
+            label = "Home",
+            selected = currentTab == FreeflexTab.HOME,
+            onClick = onHome
+        )
+
+        if (liveEnabled) {
+
+            SideBarItem(
+                icon = Icons.Default.LiveTv,
+                label = "Live",
+                selected = currentTab == FreeflexTab.LIVE,
+                onClick = onLive
+            )
+        }
+
+        if (moviesEnabled) {
+
+            SideBarItem(
+                icon = Icons.Default.Movie,
+                label = "Movies",
+                selected = currentTab == FreeflexTab.MOVIES,
+                onClick = onMovies
+            )
+        }
+
+        if (seriesEnabled) {
+
+            SideBarItem(
+                icon = Icons.Default.Tv,
+                label = "Shows",
+                selected = currentTab == FreeflexTab.SHOWS,
+                onClick = onShows
+            )
+        }
+
+        SideBarItem(
+            icon = Icons.Default.PlayArrow,
+            label = "Recordings",
+            selected = currentTab == FreeflexTab.RECORDINGS,
+            onClick = onRecordings
+        )
+
+        Spacer(
+            modifier = Modifier.weight(1f)
+        )
+
+        SideBarItem(
+            icon = Icons.Default.Search,
+            label = "Search",
+            selected = false,
+            onClick = onSearch
+        )
+
+        SideBarItem(
+            icon = Icons.Default.Person,
+            label = activeProfileName,
+            selected = false,
+            onClick = onProfiles
+        )
+
+        SideBarItem(
+            icon = Icons.Default.Settings,
+            label = "Settings",
+            selected = false,
+            onClick = onSettings
+        )
+    }
+}
+
+
+/* ---------------------------------------------------------
+   SECTION TITLE
+   --------------------------------------------------------- */
+
+@Composable
+private fun SectionTitle(
+    title: String
+) {
+
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold
+    )
+}
+
+
+/* ---------------------------------------------------------
+   MEDIA CARD
+   --------------------------------------------------------- */
+
+@Composable
+private fun FreeflexMediaCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+
+    var focused by remember {
+        mutableStateOf(false)
+    }
+
+    val background = if (focused) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    val textColor = if (focused) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    Column(
+        modifier = Modifier
+            .width(190.dp)
+            .height(120.dp)
+            .clip(
+                RoundedCornerShape(14.dp)
+            )
+            .background(background)
+            .onFocusChanged {
+                focused = it.isFocused
+            }
+            .clickable {
+                onClick()
+            }
+            .focusable()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            tint = textColor,
+            modifier = Modifier.size(30.dp)
+        )
+
+        Column {
+
+            Text(
+                text = title,
+                color = textColor,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Text(
+                text = subtitle,
+                color = textColor.copy(alpha = 0.75f),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+
+/* ---------------------------------------------------------
+   QUICK ACTION
+   --------------------------------------------------------- */
+
+@Composable
+private fun QuickAction(
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+
+    var focused by remember {
+        mutableStateOf(false)
+    }
+
+    val background = if (focused) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    val contentColor = if (focused) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    Row(
+        modifier = Modifier
+            .clip(
+                RoundedCornerShape(12.dp)
+            )
+            .background(background)
+            .onFocusChanged {
+                focused = it.isFocused
+            }
+            .clickable {
+                onClick()
+            }
+            .focusable()
+            .padding(
+                horizontal = 18.dp,
+                vertical = 14.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            tint = contentColor
+        )
+
+        Spacer(
+            modifier = Modifier.width(8.dp)
+        )
+
+        Text(
+            text = title,
+            color = contentColor,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+
+/* ---------------------------------------------------------
+   SIDEBAR ITEM
+   --------------------------------------------------------- */
+
+@Composable
+private fun SideBarItem(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+
+    var focused by remember {
+        mutableStateOf(false)
+    }
+
+    val background = when {
+        focused -> MaterialTheme.colorScheme.primary
+        selected -> MaterialTheme.colorScheme.surfaceVariant
+        else -> Color.Transparent
+    }
+
+    val contentColor = when {
+        focused -> MaterialTheme.colorScheme.onPrimary
+        selected -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp)
+            .clip(
+                RoundedCornerShape(12.dp)
+            )
+            .background(background)
+            .onFocusChanged {
+                focused = it.isFocused
+            }
+            .clickable {
+                onClick()
+            }
+            .focusable()
+            .padding(
+                vertical = 10.dp
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = contentColor,
+            modifier = Modifier.size(24.dp)
+        )
+
+        Spacer(
+            modifier = Modifier.height(4.dp)
+        )
+
+        Text(
+            text = label,
+            color = contentColor,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
