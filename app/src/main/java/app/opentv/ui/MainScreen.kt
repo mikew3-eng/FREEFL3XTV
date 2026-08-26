@@ -307,10 +307,12 @@ private fun FreeflexHomeScreen(
             .background(FreeflexBackground)
             .verticalScroll(scrollState)
             .padding(
-                start = 36.dp,
-                end = 36.dp,
-                top = 26.dp,
-                bottom = 40.dp
+                .padding(
+    start = 48.dp,
+    end = 48.dp,
+    top = 36.dp,
+    bottom = 36.dp
+)
             )
     ) {
 
