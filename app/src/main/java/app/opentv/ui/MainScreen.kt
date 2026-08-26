@@ -198,9 +198,11 @@ fun MainScreen(
         /* MAIN CONTENT */
 
         Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .weight(1f)
+            Column(
+    modifier = Modifier
+        .fillMaxSize()
+        .verticalScroll(rememberScrollState())
+        .padding(
         ) {
 
             when (currentTab) {
