@@ -1060,7 +1060,7 @@ private fun FreeflexSideBar(
 
     Column(
         modifier = Modifier
-            .width(96.dp)
+            .width(150.dp)
             .fillMaxHeight()
             .background(FreeflexPanel)
             .padding(
