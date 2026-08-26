@@ -1223,7 +1223,7 @@ private fun FreeflexSideBarItem(
             imageVector = icon,
             contentDescription = label,
             tint = contentColor,
-            modifier = Modifier.size(23.dp)
+            modifier = Modifier.size(28.dp)
         )
 
         Spacer(
