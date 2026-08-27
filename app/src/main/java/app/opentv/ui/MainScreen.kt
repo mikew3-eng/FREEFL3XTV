@@ -1244,4 +1244,4 @@ private fun FreeflexSideBarItem(
             overflow = TextOverflow.Ellipsis
         )
     }
-}
+} 
