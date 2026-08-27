@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight // <--- RE-ADDED THIS
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -77,10 +77,6 @@ private enum class FreeflexTab {
     SHOWS,
     RECORDINGS
 }
-
-/* -------------------------------------------------------------------------
-   MAIN SCREEN
-   ------------------------------------------------------------------------- */
 
 @Composable
 fun MainScreen(
@@ -165,8 +161,6 @@ fun MainScreen(
             .background(FreeflexBackground)
     ) {
 
-        /* LEFT NAVIGATION */
-
         FreeflexSideBar(
             currentTab = currentTab,
             onHome = {
@@ -192,8 +186,6 @@ fun MainScreen(
             moviesEnabled = moviesEnabled,
             seriesEnabled = seriesEnabled
         )
-
-        /* MAIN CONTENT */
 
         Column(
             modifier = Modifier
@@ -275,10 +267,6 @@ fun MainScreen(
     }
 }
 
-/* -------------------------------------------------------------------------
-   COLORS
-   ------------------------------------------------------------------------- */
-
 private val FreeflexBackground = Color(0xFF0D0D0D)
 private val FreeflexPanel = Color(0xFF151515)
 private val FreeflexCard = Color(0xFF1C1C1C)
@@ -287,10 +275,6 @@ private val FreeflexAccent = Color(0xFFE50914)
 private val FreeflexAccentDark = Color(0xFFB20710)
 private val FreeflexText = Color(0xFFFFFFFF)
 private val FreeflexMuted = Color(0xFFB3B3B3)
-
-/* -------------------------------------------------------------------------
-   HOME SCREEN
-   ------------------------------------------------------------------------- */
 
 @Composable
 private fun FreeflexHomeScreen(
@@ -314,10 +298,6 @@ private fun FreeflexHomeScreen(
             .background(FreeflexBackground)
             .verticalScroll(scrollState)
     ) {
-
-        /* -------------------------------------------------------------
-           TOP HEADER
-           ------------------------------------------------------------- */
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -367,10 +347,6 @@ private fun FreeflexHomeScreen(
             modifier = Modifier.height(22.dp)
         )
 
-        /* -------------------------------------------------------------
-           NO PLAYLIST STATUS
-           ------------------------------------------------------------- */
-
         if (!hasSources) {
 
             FreeflexStatusBanner(
@@ -382,10 +358,6 @@ private fun FreeflexHomeScreen(
             )
         }
 
-        /* -------------------------------------------------------------
-           HERO
-           ------------------------------------------------------------- */
-
         FreeflexHero(
             onWatchLive = onWatchLive
         )
@@ -393,10 +365,6 @@ private fun FreeflexHomeScreen(
         Spacer(
             modifier = Modifier.height(30.dp)
         )
-
-        /* -------------------------------------------------------------
-           CONTINUE WATCHING
-           ------------------------------------------------------------- */
 
         SectionTitle(
             title = "Continue Watching"
@@ -431,10 +399,6 @@ private fun FreeflexHomeScreen(
         Spacer(
             modifier = Modifier.height(30.dp)
         )
-
-        /* -------------------------------------------------------------
-           LIVE TV
-           ------------------------------------------------------------- */
 
         SectionTitle(
             title = "Live TV"
@@ -471,10 +435,6 @@ private fun FreeflexHomeScreen(
             modifier = Modifier.height(30.dp)
         )
 
-        /* -------------------------------------------------------------
-           MOVIES
-           ------------------------------------------------------------- */
-
         SectionTitle(
             title = "Movies"
         )
@@ -509,10 +469,6 @@ private fun FreeflexHomeScreen(
             modifier = Modifier.height(30.dp)
         )
 
-        /* -------------------------------------------------------------
-           SERIES
-           ------------------------------------------------------------- */
-
         SectionTitle(
             title = "Series"
         )
@@ -546,10 +502,6 @@ private fun FreeflexHomeScreen(
         Spacer(
             modifier = Modifier.height(30.dp)
         )
-
-        /* -------------------------------------------------------------
-           QUICK ACTIONS
-           ------------------------------------------------------------- */
 
         SectionTitle(
             title = "Quick Actions"
@@ -602,10 +554,6 @@ private fun FreeflexHomeScreen(
         )
     }
 }
-
-/* -------------------------------------------------------------------------
-   HERO
-   ------------------------------------------------------------------------- */
 
 @Composable
 private fun FreeflexHero(
@@ -682,10 +630,6 @@ private fun FreeflexHero(
     }
 }
 
-/* -------------------------------------------------------------------------
-   STATUS BANNER
-   ------------------------------------------------------------------------- */
-
 @Composable
 private fun FreeflexStatusBanner(
     onAddSource: () -> Unit
@@ -745,10 +689,6 @@ private fun FreeflexStatusBanner(
     }
 }
 
-/* -------------------------------------------------------------------------
-   HEADER BUTTON
-   ------------------------------------------------------------------------- */
-
 @Composable
 private fun FreeflexHeaderButton(
     icon: ImageVector,
@@ -803,10 +743,6 @@ private fun FreeflexHeaderButton(
     }
 }
 
-/* -------------------------------------------------------------------------
-   SECTION TITLE
-   ------------------------------------------------------------------------- */
-
 @Composable
 private fun SectionTitle(
     title: String
@@ -819,10 +755,6 @@ private fun SectionTitle(
         fontWeight = FontWeight.Bold
     )
 }
-
-/* -------------------------------------------------------------------------
-   MEDIA CARD
-   ------------------------------------------------------------------------- */
 
 @Composable
 private fun FreeflexMediaCard(
@@ -891,10 +823,6 @@ private fun FreeflexMediaCard(
     }
 }
 
-/* -------------------------------------------------------------------------
-   CATEGORY CARD
-   ------------------------------------------------------------------------- */
-
 @Composable
 private fun FreeflexCategoryCard(
     title: String,
@@ -946,10 +874,6 @@ private fun FreeflexCategoryCard(
         )
     }
 }
-
-/* -------------------------------------------------------------------------
-   QUICK ACTION
-   ------------------------------------------------------------------------- */
 
 @Composable
 private fun FreeflexQuickAction(
@@ -1012,10 +936,6 @@ private fun FreeflexQuickAction(
     }
 }
 
-/* -------------------------------------------------------------------------
-   SIDEBAR
-   ------------------------------------------------------------------------- */
-
 @Composable
 private fun FreeflexSideBar(
     currentTab: FreeflexTab,
@@ -1045,8 +965,6 @@ private fun FreeflexSideBar(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        /* LOGO */
-
         Text(
             text = "FREEFL3X",
             style = MaterialTheme.typography.headlineSmall,
@@ -1058,16 +976,12 @@ private fun FreeflexSideBar(
             modifier = Modifier.height(26.dp)
         )
 
-        /* HOME */
-
         FreeflexSideBarItem(
             icon = Icons.Default.Home,
             label = "Home",
             selected = currentTab == FreeflexTab.HOME,
             onClick = onHome
         )
-
-        /* LIVE */
 
         if (liveEnabled) {
 
@@ -1079,8 +993,6 @@ private fun FreeflexSideBar(
             )
         }
 
-        /* MOVIES */
-
         if (moviesEnabled) {
 
             FreeflexSideBarItem(
@@ -1090,8 +1002,6 @@ private fun FreeflexSideBar(
                 onClick = onMovies
             )
         }
-
-        /* SERIES */
 
         if (seriesEnabled) {
 
@@ -1103,16 +1013,12 @@ private fun FreeflexSideBar(
             )
         }
 
-        /* FAVORITES - Added to match your image */
-
         FreeflexSideBarItem(
             icon = Icons.Default.Favorite,
             label = "Favorites",
             selected = false,
             onClick = onOpenMovies
         )
-
-        /* SEARCH */
 
         FreeflexSideBarItem(
             icon = Icons.Default.Search,
@@ -1121,16 +1027,12 @@ private fun FreeflexSideBar(
             onClick = onSearch
         )
 
-        /* PROFILE */
-
         FreeflexSideBarItem(
             icon = Icons.Default.Person,
             label = activeProfileName,
             selected = false,
             onClick = onProfiles
         )
-
-        /* SETTINGS */
 
         FreeflexSideBarItem(
             icon = Icons.Default.Settings,
@@ -1140,10 +1042,6 @@ private fun FreeflexSideBar(
         )
     }
 }
-
-/* -------------------------------------------------------------------------
-   SIDEBAR ITEM
-   ------------------------------------------------------------------------- */
 
 @Composable
 private fun FreeflexSideBarItem(
