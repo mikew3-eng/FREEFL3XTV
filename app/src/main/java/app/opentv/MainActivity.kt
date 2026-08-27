@@ -1,6 +1,6 @@
 /*
  * FREEFL3X TV
- * Home screen redesign based on OpenTV.
+ * Custom home screen redesign based on OpenTV.
  */
 package app.opentv.ui
 
@@ -20,11 +20,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Person
@@ -37,7 +41,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -75,6 +79,10 @@ private enum class FreeflexTab {
     RECORDINGS
 }
 
+/* -------------------------------------------------------------------------
+   MAIN SCREEN
+   ------------------------------------------------------------------------- */
+
 @Composable
 fun MainScreen(
     isTelevision: Boolean,
@@ -89,7 +97,6 @@ fun MainScreen(
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenProfiles: () -> Unit,
-    onOpenProviders: () -> Unit,
     onPlayRecording: (Recording) -> Unit,
     onPlayCatchup: (mediaKey: String, url: String, title: String, ua: String) -> Unit,
     activeProfileName: String,
@@ -156,8 +163,10 @@ fun MainScreen(
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(FreeflexBackground)
     ) {
+
+        /* LEFT NAVIGATION */
 
         FreeflexSideBar(
             currentTab = currentTab,
@@ -185,10 +194,19 @@ fun MainScreen(
             seriesEnabled = seriesEnabled
         )
 
-        Box(
+        /* MAIN CONTENT */
+
+        Column(
             modifier = Modifier
-                .fillMaxHeight()
+                .fillMaxSize()
                 .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    start = 48.dp,
+                    end = 48.dp,
+                    top = 36.dp,
+                    bottom = 36.dp
+                )
         ) {
 
             when (currentTab) {
@@ -211,7 +229,7 @@ fun MainScreen(
                         },
                         onOpenSettings = onOpenSettings,
                         onOpenProfiles = onOpenProfiles,
-                        onOpenProviders = onOpenProviders
+                        onAddSource = onAddSource
                     )
                 }
 
@@ -257,10 +275,22 @@ fun MainScreen(
     }
 }
 
+/* -------------------------------------------------------------------------
+   COLORS
+   ------------------------------------------------------------------------- */
 
-/* ---------------------------------------------------------
-   FREEFL3X TV HOME SCREEN
-   --------------------------------------------------------- */
+private val FreeflexBackground = Color(0xFF0D0D0D)
+private val FreeflexPanel = Color(0xFF151515)
+private val FreeflexCard = Color(0xFF1C1C1C)
+private val FreeflexCardLight = Color(0xFF242424)
+private val FreeflexAccent = Color(0xFFE50914)
+private val FreeflexAccentDark = Color(0xFFB20710)
+private val FreeflexText = Color(0xFFFFFFFF)
+private val FreeflexMuted = Color(0xFFB3B3B3)
+
+/* -------------------------------------------------------------------------
+   HOME SCREEN
+   ------------------------------------------------------------------------- */
 
 @Composable
 private fun FreeflexHomeScreen(
@@ -272,21 +302,21 @@ private fun FreeflexHomeScreen(
     onOpenRecordings: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenProfiles: () -> Unit,
-    onOpenProviders: () -> Unit
+    onAddSource: () -> Unit
 ) {
+
+    val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(
-                start = 42.dp,
-                end = 42.dp,
-                top = 32.dp,
-                bottom = 28.dp
-            )
+            .background(FreeflexBackground)
+            .verticalScroll(scrollState)
     ) {
 
-        /* HEADER */
+        /* -------------------------------------------------------------
+           TOP HEADER
+           ------------------------------------------------------------- */
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -298,20 +328,10 @@ private fun FreeflexHomeScreen(
             ) {
 
                 Text(
-                    text = "FREEFL3X TV",
-                    style = MaterialTheme.typography.headlineLarge,
+                    text = "FREE FLEX TV",
+                    color = FreeflexText,
                     fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Spacer(
-                    modifier = Modifier.height(6.dp)
-                )
-
-                Text(
-                    text = "Welcome back, $activeProfileName",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.headlineLarge
                 )
 
                 Spacer(
@@ -319,71 +339,63 @@ private fun FreeflexHomeScreen(
                 )
 
                 Text(
-                    text = "Your entertainment, your way.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Your entertainment. Your way.",
+                    color = FreeflexMuted,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
 
-            OutlinedButton(
+            FreeflexHeaderButton(
+                icon = Icons.Default.Search,
+                text = "Search",
+                onClick = onOpenSearch
+            )
+
+            Spacer(
+                modifier = Modifier.width(10.dp)
+            )
+
+            FreeflexHeaderButton(
+                icon = Icons.Default.Person,
+                text = activeProfileName,
                 onClick = onOpenProfiles
-            ) {
-
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Profile"
-                )
-
-                Spacer(
-                    modifier = Modifier.width(8.dp)
-                )
-
-                Text("Profile")
-            }
+            )
         }
+
+        Spacer(
+            modifier = Modifier.height(22.dp)
+        )
+
+        /* -------------------------------------------------------------
+           NO PLAYLIST STATUS
+           ------------------------------------------------------------- */
+
+        if (!hasSources) {
+
+            FreeflexStatusBanner(
+                onAddSource = onAddSource
+            )
+
+            Spacer(
+                modifier = Modifier.height(22.dp)
+            )
+        }
+
+        /* -------------------------------------------------------------
+           HERO
+           ------------------------------------------------------------- */
+
+        FreeflexHero(
+            onWatchLive = onWatchLive
+        )
 
         Spacer(
             modifier = Modifier.height(30.dp)
         )
 
-
-        /* WATCH LIVE */
-
-        Button(
-            onClick = onWatchLive,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(74.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        ) {
-
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = "Watch Live",
-                modifier = Modifier.size(30.dp)
-            )
-
-            Spacer(
-                modifier = Modifier.width(12.dp)
-            )
-
-            Text(
-                text = "WATCH LIVE",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-
-        Spacer(
-            modifier = Modifier.height(32.dp)
-        )
-
-
-        /* CONTINUE WATCHING */
+        /* -------------------------------------------------------------
+           CONTINUE WATCHING
+           ------------------------------------------------------------- */
 
         SectionTitle(
             title = "Continue Watching"
@@ -399,29 +411,29 @@ private fun FreeflexHomeScreen(
 
             items(
                 listOf(
-                    "Continue Watching",
-                    "Recently Watched",
-                    "Your Library",
-                    "Watch Again"
+                    "Resume Movie",
+                    "Continue Episode",
+                    "Watch Again",
+                    "Your Library"
                 )
             ) { title ->
 
                 FreeflexMediaCard(
                     title = title,
-                    subtitle = "Continue watching",
+                    subtitle = "Pick up where you left off",
                     icon = Icons.Default.PlayArrow,
                     onClick = onOpenMovies
                 )
             }
         }
 
-
         Spacer(
-            modifier = Modifier.height(28.dp)
+            modifier = Modifier.height(30.dp)
         )
 
-
-        /* LIVE TV */
+        /* -------------------------------------------------------------
+           LIVE TV
+           ------------------------------------------------------------- */
 
         SectionTitle(
             title = "Live TV"
@@ -437,29 +449,30 @@ private fun FreeflexHomeScreen(
 
             items(
                 listOf(
-                    "Live Channels",
-                    "TV Guide",
-                    "Favorites",
-                    "Recently Watched"
+                    "All Channels",
+                    "News",
+                    "Sports",
+                    "Entertainment",
+                    "Kids",
+                    "Music"
                 )
-            ) { title ->
+            ) { category ->
 
-                FreeflexMediaCard(
-                    title = title,
-                    subtitle = "Live television",
+                FreeflexCategoryCard(
+                    title = category,
                     icon = Icons.Default.LiveTv,
                     onClick = onWatchLive
                 )
             }
         }
 
-
         Spacer(
-            modifier = Modifier.height(28.dp)
+            modifier = Modifier.height(30.dp)
         )
 
-
-        /* MOVIES */
+        /* -------------------------------------------------------------
+           MOVIES
+           ------------------------------------------------------------- */
 
         SectionTitle(
             title = "Movies"
@@ -484,20 +497,58 @@ private fun FreeflexHomeScreen(
 
                 FreeflexMediaCard(
                     title = title,
-                    subtitle = "Movies",
+                    subtitle = "Movies & VOD",
                     icon = Icons.Default.Movie,
                     onClick = onOpenMovies
                 )
             }
         }
 
-
         Spacer(
-            modifier = Modifier.height(28.dp)
+            modifier = Modifier.height(30.dp)
         )
 
+        /* -------------------------------------------------------------
+           SERIES
+           ------------------------------------------------------------- */
 
-        /* QUICK ACTIONS */
+        SectionTitle(
+            title = "Series"
+        )
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+
+            items(
+                listOf(
+                    "Series",
+                    "Recently Added",
+                    "Popular Shows",
+                    "Continue Watching"
+                )
+            ) { title ->
+
+                FreeflexMediaCard(
+                    title = title,
+                    subtitle = "TV shows & episodes",
+                    icon = Icons.Default.Tv,
+                    onClick = onOpenShows
+                )
+            }
+        }
+
+        Spacer(
+            modifier = Modifier.height(30.dp)
+        )
+
+        /* -------------------------------------------------------------
+           QUICK ACTIONS
+           ------------------------------------------------------------- */
 
         SectionTitle(
             title = "Quick Actions"
@@ -508,54 +559,461 @@ private fun FreeflexHomeScreen(
         )
 
         Row(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
 
-            QuickAction(
-                title = "TV GUIDE",
-                icon = Icons.Default.Tv,
-                onClick = onWatchLive
-            )
-
-            QuickAction(
-                title = "PLAYLISTS",
+            FreeflexQuickAction(
+                title = "ADD PLAYLIST",
+                subtitle = "Add your M3U or Xtream Codes",
                 icon = Icons.Default.LiveTv,
-                onClick = onOpenProviders
+                modifier = Modifier.weight(1f),
+                onClick = onAddSource
             )
 
-            QuickAction(
-                title = "FAVORITES",
+            FreeflexQuickAction(
+                title = "PLAYLISTS",
+                subtitle = "Manage your playlists",
+                icon = Icons.Default.Tv,
+                modifier = Modifier.weight(1f),
+                onClick = onOpenSettings
+            )
+
+            FreeflexQuickAction(
+                title = "EPG",
+                subtitle = "TV Guide & Schedule",
                 icon = Icons.Default.Favorite,
-                onClick = onWatchLive
+                modifier = Modifier.weight(1f),
+                onClick = onOpenSettings
             )
 
-            QuickAction(
+            FreeflexQuickAction(
                 title = "SETTINGS",
+                subtitle = "App preferences",
                 icon = Icons.Default.Settings,
+                modifier = Modifier.weight(1f),
                 onClick = onOpenSettings
             )
         }
 
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
+    }
+}
 
-        if (!hasSources) {
+/* -------------------------------------------------------------------------
+   HERO
+   ------------------------------------------------------------------------- */
+
+@Composable
+private fun FreeflexHero(
+    onWatchLive: () -> Unit
+) {
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = FreeflexPanel
+    ) {
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = 34.dp,
+                    vertical = 32.dp
+                ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+
+                Text(
+                    text = "WELCOME TO FREE FLEX TV",
+                    color = FreeflexText,
+                    fontWeight = FontWeight.ExtraBold,
+                    style = MaterialTheme.typography.headlineMedium
+                )
+
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
+
+                Text(
+                    text = "Your ultimate entertainment. Watch live TV, movies, and shows.",
+                    color = FreeflexMuted,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Spacer(
+                    modifier = Modifier.height(20.dp)
+                )
+
+                Button(
+                    onClick = onWatchLive,
+                    modifier = Modifier.height(54.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = FreeflexAccent,
+                        contentColor = Color.White
+                    )
+                ) {
+
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Watch Live"
+                    )
+
+                    Spacer(
+                        modifier = Modifier.width(8.dp)
+                    )
+
+                    Text(
+                        text = "WATCH LIVE TV",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+/* -------------------------------------------------------------------------
+   STATUS BANNER
+   ------------------------------------------------------------------------- */
+
+@Composable
+private fun FreeflexStatusBanner(
+    onAddSource: () -> Unit
+) {
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xFF1A1A1A)
+    ) {
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = 20.dp,
+                    vertical = 16.dp
+                ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+
+                Text(
+                    text = "No playlist added",
+                    color = FreeflexText,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Spacer(
+                    modifier = Modifier.height(3.dp)
+                )
+
+                Text(
+                    text = "Add your playlist to get started.",
+                    color = FreeflexMuted,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            Button(
+                onClick = onAddSource,
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = FreeflexAccent
+                )
+            ) {
+                Text(
+                    text = "ADD PLAYLIST",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+/* -------------------------------------------------------------------------
+   HEADER BUTTON
+   ------------------------------------------------------------------------- */
+
+@Composable
+private fun FreeflexHeaderButton(
+    icon: ImageVector,
+    text: String,
+    onClick: () -> Unit
+) {
+
+    var focused by remember {
+        mutableStateOf(false)
+    }
+
+    val background =
+        if (focused) FreeflexAccent
+        else FreeflexCard
+
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(background)
+            .onFocusChanged {
+                focused = it.isFocused
+            }
+            .focusable()
+            .clickable {
+                onClick()
+            }
+            .padding(
+                horizontal = 14.dp,
+                vertical = 10.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        Icon(
+            imageVector = icon,
+            contentDescription = text,
+            tint = Color.White,
+            modifier = Modifier.size(20.dp)
+        )
+
+        Spacer(
+            modifier = Modifier.width(7.dp)
+        )
+
+        Text(
+            text = text,
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/* -------------------------------------------------------------------------
+   SECTION TITLE
+   ------------------------------------------------------------------------- */
+
+@Composable
+private fun SectionTitle(
+    title: String
+) {
+
+    Text(
+        text = title,
+        color = FreeflexText,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold
+    )
+}
+
+/* -------------------------------------------------------------------------
+   MEDIA CARD
+   ------------------------------------------------------------------------- */
+
+@Composable
+private fun FreeflexMediaCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+
+    var focused by remember {
+        mutableStateOf(false)
+    }
+
+    val background =
+        if (focused) FreeflexAccent
+        else FreeflexCard
+
+    val contentColor = Color.White
+
+    Column(
+        modifier = Modifier
+            .width(210.dp)
+            .height(128.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(background)
+            .onFocusChanged {
+                focused = it.isFocused
+            }
+            .focusable()
+            .clickable {
+                onClick()
+            }
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            tint = contentColor,
+            modifier = Modifier.size(30.dp)
+        )
+
+        Column {
+
+            Text(
+                text = title,
+                color = contentColor,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
 
             Spacer(
-                modifier = Modifier.height(20.dp)
+                modifier = Modifier.height(3.dp)
             )
 
             Text(
-                text = "Add a TV provider to start watching.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = subtitle,
+                color = Color.White.copy(alpha = 0.70f),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
 }
 
+/* -------------------------------------------------------------------------
+   CATEGORY CARD
+   ------------------------------------------------------------------------- */
 
-/* ---------------------------------------------------------
+@Composable
+private fun FreeflexCategoryCard(
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+
+    var focused by remember {
+        mutableStateOf(false)
+    }
+
+    val background =
+        if (focused) FreeflexAccent
+        else FreeflexCard
+
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(background)
+            .onFocusChanged {
+                focused = it.isFocused
+            }
+            .focusable()
+            .clickable {
+                onClick()
+            }
+            .padding(
+                horizontal = 18.dp,
+                vertical = 14.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            tint = Color.White,
+            modifier = Modifier.size(20.dp)
+        )
+
+        Spacer(
+            modifier = Modifier.width(8.dp)
+        )
+
+        Text(
+            text = title,
+            color = Color.White,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+/* -------------------------------------------------------------------------
+   QUICK ACTION
+   ------------------------------------------------------------------------- */
+
+@Composable
+private fun FreeflexQuickAction(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+
+    var focused by remember {
+        mutableStateOf(false)
+    }
+
+    val background =
+        if (focused) FreeflexAccent
+        else FreeflexCard
+
+    Column(
+        modifier = modifier
+            .height(112.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(background)
+            .onFocusChanged {
+                focused = it.isFocused
+            }
+            .focusable()
+            .clickable {
+                onClick()
+            }
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            tint = Color.White,
+            modifier = Modifier.size(25.dp)
+        )
+
+        Column {
+
+            Text(
+                text = title,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Text(
+                text = subtitle,
+                color = Color.White.copy(alpha = 0.70f),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/* -------------------------------------------------------------------------
    SIDEBAR
-   --------------------------------------------------------- */
+   ------------------------------------------------------------------------- */
 
 @Composable
 private fun FreeflexSideBar(
@@ -576,47 +1034,55 @@ private fun FreeflexSideBar(
 
     Column(
         modifier = Modifier
-            .width(92.dp)
+            .width(150.dp)
             .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(FreeflexPanel)
             .padding(
-                vertical = 20.dp,
-                horizontal = 10.dp
+                vertical = 18.dp,
+                horizontal = 9.dp
             ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
+        /* LOGO */
+
         Text(
-            text = "FX",
+            text = "FREEFL3X",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.primary
+            color = FreeflexAccent
         )
 
         Spacer(
-            modifier = Modifier.height(30.dp)
+            modifier = Modifier.height(26.dp)
         )
 
-        SideBarItem(
-            icon = Icons.Default.Tv,
+        /* HOME */
+
+        FreeflexSideBarItem(
+            icon = Icons.Default.Home,
             label = "Home",
             selected = currentTab == FreeflexTab.HOME,
             onClick = onHome
         )
 
+        /* LIVE */
+
         if (liveEnabled) {
 
-            SideBarItem(
+            FreeflexSideBarItem(
                 icon = Icons.Default.LiveTv,
-                label = "Live",
+                label = "Live TV",
                 selected = currentTab == FreeflexTab.LIVE,
                 onClick = onLive
             )
         }
 
+        /* MOVIES */
+
         if (moviesEnabled) {
 
-            SideBarItem(
+            FreeflexSideBarItem(
                 icon = Icons.Default.Movie,
                 label = "Movies",
                 selected = currentTab == FreeflexTab.MOVIES,
@@ -624,42 +1090,48 @@ private fun FreeflexSideBar(
             )
         }
 
+        /* SERIES */
+
         if (seriesEnabled) {
 
-            SideBarItem(
+            FreeflexSideBarItem(
                 icon = Icons.Default.Tv,
-                label = "Shows",
+                label = "Series",
                 selected = currentTab == FreeflexTab.SHOWS,
                 onClick = onShows
             )
         }
 
-        SideBarItem(
-            icon = Icons.Default.PlayArrow,
-            label = "Recordings",
-            selected = currentTab == FreeflexTab.RECORDINGS,
-            onClick = onRecordings
+        /* FAVORITES - Added to match your image */
+
+        FreeflexSideBarItem(
+            icon = Icons.Default.Favorite,
+            label = "Favorites",
+            selected = false,
+            onClick = onOpenMovies
         )
 
-        Spacer(
-            modifier = Modifier.weight(1f)
-        )
+        /* SEARCH */
 
-        SideBarItem(
+        FreeflexSideBarItem(
             icon = Icons.Default.Search,
             label = "Search",
             selected = false,
             onClick = onSearch
         )
 
-        SideBarItem(
+        /* PROFILE */
+
+        FreeflexSideBarItem(
             icon = Icons.Default.Person,
             label = activeProfileName,
             selected = false,
             onClick = onProfiles
         )
 
-        SideBarItem(
+        /* SETTINGS */
+
+        FreeflexSideBarItem(
             icon = Icons.Default.Settings,
             label = "Settings",
             selected = false,
@@ -668,170 +1140,12 @@ private fun FreeflexSideBar(
     }
 }
 
-
-/* ---------------------------------------------------------
-   SECTION TITLE
-   --------------------------------------------------------- */
-
-@Composable
-private fun SectionTitle(
-    title: String
-) {
-
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleLarge,
-        fontWeight = FontWeight.Bold
-    )
-}
-
-
-/* ---------------------------------------------------------
-   MEDIA CARD
-   --------------------------------------------------------- */
-
-@Composable
-private fun FreeflexMediaCard(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    onClick: () -> Unit
-) {
-
-    var focused by remember {
-        mutableStateOf(false)
-    }
-
-    val background = if (focused) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
-
-    val textColor = if (focused) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
-
-    Column(
-        modifier = Modifier
-            .width(190.dp)
-            .height(120.dp)
-            .clip(
-                RoundedCornerShape(14.dp)
-            )
-            .background(background)
-            .onFocusChanged {
-                focused = it.isFocused
-            }
-            .clickable {
-                onClick()
-            }
-            .focusable()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            tint = textColor,
-            modifier = Modifier.size(30.dp)
-        )
-
-        Column {
-
-            Text(
-                text = title,
-                color = textColor,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Text(
-                text = subtitle,
-                color = textColor.copy(alpha = 0.75f),
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-    }
-}
-
-
-/* ---------------------------------------------------------
-   QUICK ACTION
-   --------------------------------------------------------- */
-
-@Composable
-private fun QuickAction(
-    title: String,
-    icon: ImageVector,
-    onClick: () -> Unit
-) {
-
-    var focused by remember {
-        mutableStateOf(false)
-    }
-
-    val background = if (focused) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
-
-    val contentColor = if (focused) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
-
-    Row(
-        modifier = Modifier
-            .clip(
-                RoundedCornerShape(12.dp)
-            )
-            .background(background)
-            .onFocusChanged {
-                focused = it.isFocused
-            }
-            .clickable {
-                onClick()
-            }
-            .focusable()
-            .padding(
-                horizontal = 18.dp,
-                vertical = 14.dp
-            ),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            tint = contentColor
-        )
-
-        Spacer(
-            modifier = Modifier.width(8.dp)
-        )
-
-        Text(
-            text = title,
-            color = contentColor,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-
-/* ---------------------------------------------------------
+/* -------------------------------------------------------------------------
    SIDEBAR ITEM
-   --------------------------------------------------------- */
+   ------------------------------------------------------------------------- */
 
 @Composable
-private fun SideBarItem(
+private fun FreeflexSideBarItem(
     icon: ImageVector,
     label: String,
     selected: Boolean,
@@ -843,35 +1157,31 @@ private fun SideBarItem(
     }
 
     val background = when {
-        focused -> MaterialTheme.colorScheme.primary
-        selected -> MaterialTheme.colorScheme.surfaceVariant
+        focused -> FreeflexAccent
+        selected -> FreeflexCardLight
         else -> Color.Transparent
     }
 
     val contentColor = when {
-        focused -> MaterialTheme.colorScheme.onPrimary
-        selected -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+        focused -> Color.White
+        selected -> FreeflexAccent
+        else -> FreeflexMuted
     }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 3.dp)
-            .clip(
-                RoundedCornerShape(12.dp)
-            )
+            .padding(vertical = 14.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(background)
             .onFocusChanged {
                 focused = it.isFocused
             }
+            .focusable()
             .clickable {
                 onClick()
             }
-            .focusable()
-            .padding(
-                vertical = 10.dp
-            ),
+            .padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
@@ -879,7 +1189,7 @@ private fun SideBarItem(
             imageVector = icon,
             contentDescription = label,
             tint = contentColor,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(28.dp)
         )
 
         Spacer(
@@ -889,7 +1199,7 @@ private fun SideBarItem(
         Text(
             text = label,
             color = contentColor,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
