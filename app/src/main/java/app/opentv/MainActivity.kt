@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
+// Removed: import androidx.compose.foundation.layout.weight (Internal)
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -229,7 +229,8 @@ fun MainScreen(
                         },
                         onOpenSettings = onOpenSettings,
                         onOpenProfiles = onOpenProfiles,
-                        onAddSource = onAddSource
+                        onAddSource = onAddSource,
+                        onOpenSearch = onOpenSearch // <--- FIXED: Passed here
                     )
                 }
 
@@ -302,7 +303,8 @@ private fun FreeflexHomeScreen(
     onOpenRecordings: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenProfiles: () -> Unit,
-    onAddSource: () -> Unit
+    onAddSource: () -> Unit,
+    onOpenSearch: () -> Unit // <--- FIXED: Added parameter
 ) {
 
     val scrollState = rememberScrollState()
